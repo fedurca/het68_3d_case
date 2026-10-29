@@ -1,0 +1,5 @@
+HT DN 32 pipe, not a printed part.
+Spine from hub seat to electronics-lid seat: 249.0 mm.
+Insert 40 mm into the hub and 40 mm into the lid.
+Six printed arms carry the microphone pods; do not replace those with plain pipe
+unless the clocking rib and the bayonet lug are kept.

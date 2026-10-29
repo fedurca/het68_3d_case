@@ -1,0 +1,74 @@
+# Publish STL, STEP and renders for a semver release (x.y.z or vx.y.z).
+# After a green upload, force-move the floating git tag `latest` to that commit.
+# `latest` is not a GitHub Release.
+
+name: Release case
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-case-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Pack geometry and move latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate semver tag
+        id: semver
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${TAG}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '${TAG}' is not x.y.z or vx.y.z."
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Zip printable parts and renders
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          test -d export/stl
+          test -d export/img
+          test -d export/step
+          mkdir -p dist
+          zip -r "dist/het68-3d-case-${VERSION}.zip" \
+            export/stl export/step export/img export/CUT_LENGTHS.txt
+          (cd dist && sha256sum "het68-3d-case-${VERSION}.zip" > SHA256SUMS.txt)
+
+      - name: Upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.semver.outputs.tag }}
+          make_latest: true
+          files: |
+            dist/het68-3d-case-${{ steps.semver.outputs.version }}.zip
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true
+
+      - name: Move floating git tag latest
+        env:
+          TAG: ${{ steps.semver.outputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f latest "${GITHUB_SHA}"
+          git push origin refs/tags/latest --force
+          echo "Moved git tag latest -> ${GITHUB_SHA} (release ${TAG})"
