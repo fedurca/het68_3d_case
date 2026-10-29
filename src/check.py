@@ -17,21 +17,21 @@ from params import (
     CORE_Z,
     EDGE_MM,
     GROOVE_DEPTH,
-    HUB_CAP_Z,
-    HUB_CAV_H,
     HUB_CAV_R,
+    HUB_R,
     KEY_HEIGHT,
     LUG_FROM_FACE,
     LUG_RADIAL,
+    MAST_SPIGOT,
     MIC_DIR,
     MOUTH_R,
     PIPE_ID,
+    POD_SHOULDER,
     SEAT_R,
     SOCKET_ID,
     SPIGOT_LEN,
     SPIGOT_OD,
     cable_length,
-    cap_axis_distance,
     mast_mouth_z,
     mast_seat_z,
     opposite_distance,
@@ -63,27 +63,26 @@ def check_baselines():
             else:
                 assert abs(dot) < 0.01, (i, j, dot)
     assert abs(ACOUSTIC_R - EDGE_MM / 2) < 1e-9
-    # Every microphone meets the hub cap at the same distance, and the cable
-    # run from that cap's cavity to the membrane is the same length.
-    assert abs(cap_axis_distance() - SEAT_R) < 1e-9
-    reaches = []
-    cables = []
+    # The crown is a sphere: every direction, not only the six microphones,
+    # meets the shell and the cavity at one radius.
+    assert abs(cable_length() - (ACOUSTIC_R - HUB_CAV_R)) < 1e-9
+    corner = math.sqrt((CORE_X / 2) ** 2 + (CORE_Y / 2) ** 2 + (CORE_Z / 2) ** 2)
+    assert corner < HUB_CAV_R - 1, corner
+    # Spigot tip is outside the stack along every microphone axis.
     for raw in MIC_DIR:
-        reaches.append(HUB_CAP_Z / abs(raw[2]))
-        cables.append(ACOUSTIC_R - (HUB_CAV_H / 2) / abs(raw[2]))
-    assert max(reaches) - min(reaches) < 0.05, reaches
-    assert max(cables) - min(cables) < 0.05, cables
-    assert abs(cables[0] - cable_length()) < 0.05
-    # Stack centered in the round cavity: corners clear the wall, height clear of the caps.
-    corner = math.hypot(CORE_X / 2, CORE_Y / 2)
-    assert corner < HUB_CAV_R - 4, corner
-    assert CORE_Z / 2 < HUB_CAV_H / 2 - 4
-    assert mast_mouth_z() == mast_seat_z() - SPIGOT_LEN
-    assert mast_seat_z() == -HUB_CAP_Z
+        point = [SEAT_R * c for c in raw]
+        outside = (
+            abs(point[0]) > CORE_X / 2
+            or abs(point[1]) > CORE_Y / 2
+            or abs(point[2]) > CORE_Z / 2
+        )
+        assert outside, point
+    assert mast_mouth_z() == mast_seat_z() - MAST_SPIGOT
+    assert mast_seat_z() < -(CORE_Z / 2 + 20)
     # Bayonet lug and pod slot share one station along the arm.
     arm_tip = COLLAR_FACE_R - SEAT_R
     lug_along = SEAT_R + (arm_tip - LUG_FROM_FACE)
-    pod_lug_along = ACOUSTIC_R + (-32.0 - LUG_FROM_FACE)
+    pod_lug_along = ACOUSTIC_R + (POD_SHOULDER - LUG_FROM_FACE)
     assert abs(lug_along - pod_lug_along) < 0.05, (lug_along, pod_lug_along)
     assert MOUTH_R == SEAT_R + SPIGOT_LEN
     assert COLLAR_OD / 2 + LUG_RADIAL > PIPE_ID / 2
@@ -178,14 +177,19 @@ def check_solids(arm_part, hub_lower, hub_upper, pod_part, window_part):
     assert not inside(window_part, (0, 0, 1.0))
     assert inside(window_part, (LED_RING_R, 0, 0.6))
 
-    # Core envelope is air at the origin. The cap beside the mast hole stays closed.
-    assert not inside(hub_lower, (70, 40, -20))
-    assert not inside(hub_upper, (70, 40, 20))
-    assert inside(hub_lower, (20, 0, -38))
-    assert not inside(hub_lower, (0, 0, -38))
-    # Each microphone bore is open, and the two halves do not occupy each other.
+    # Stack center is air. The shell is the same radius along X, Y and Z.
+    assert not inside(hub_upper, (40, 30, 20))
+    assert not inside(hub_lower, (40, 30, -20))
+    assert inside(hub_upper, (0, 0, HUB_R - 3))
+    assert not inside(hub_upper, (0, 0, HUB_R + 4))
+    assert inside(hub_upper, (HUB_R - 3, 0, 3))
+    assert not inside(hub_upper, (HUB_R + 6, 0, 3))
+    # Stem socket is open at the mouth and closed before the cavity.
+    assert not inside(hub_lower, (0, 0, mast_mouth_z() + 4))
+    assert inside(hub_lower, (0, 0, (mast_seat_z() + (-HUB_CAV_R)) / 2))
     for frame in frames:
-        assert not inside(hub_lower if frame.n.Z < 0 else hub_upper, frame.point((SEAT_R + MOUTH_R) / 2))
+        half = hub_lower if frame.n.Z < 0 else hub_upper
+        assert not inside(half, frame.point((SEAT_R + MOUTH_R) / 2))
     overlap = hub_lower.intersect(hub_upper)
     if overlap is not None:
         solids = overlap.solids() if hasattr(overlap, "solids") else [overlap]

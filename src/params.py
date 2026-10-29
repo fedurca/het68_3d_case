@@ -31,7 +31,6 @@ SPINE_DIR = (0.0, 0.0, -1.0)
 PIPE_OD = 32.0
 PIPE_ID = 28.4
 SPIGOT_OD = 31.7
-SPIGOT_LEN = 40.0
 SOCKET_ID = 32.4
 SOCKET_WALL = 4.5
 KEY_WIDTH = 4.0
@@ -41,24 +40,26 @@ GROOVE_WIDTH = 5.2
 GROOVE_DEPTH = 2.4
 GROOVE_LENGTH = 16.0
 
-# Core and the power board sit at the origin, inside the seven-port hub.
-# A vertical cylinder keeps every microphone at the same distance from the
-# shell: all six directions share |nz|, so each meets a flat cap together.
+# Spherical crown. One radius in every direction, so the body each
+# microphone looks back at is the same shape. The stack sits at the origin.
 HUB_CAV_R = 102.0
-HUB_CAV_H = 72.0
-HUB_WALL = 3.5
-HUB_R = HUB_CAV_R + HUB_WALL
-HUB_CAP_Z = HUB_CAV_H / 2.0 + HUB_WALL
-HUB_FLANGE_R = HUB_R + 14.0
-HUB_FLANGE_T = 5.0
-_CAP_NZ = abs(MIC_DIR[0][2])
-SEAT_R = HUB_CAP_Z / _CAP_NZ
+HUB_R = 110.0
+# Printed arm seats outside the board. The real mast pipe uses a deeper socket.
+SEAT_R = 96.0
+SPIGOT_LEN = 28.0
 MOUTH_R = SEAT_R + SPIGOT_LEN
+MAST_SPIGOT = 40.0
+# Stop just outside the cavity so the stem socket stays a blind hole.
+MAST_SEAT_Z = -(HUB_CAV_R + 2.0)
 
-# Arm collar stops 32 mm behind the acoustic plane.
-COLLAR_FACE_R = ACOUSTIC_R - 32.0  # 160 mm
+# Collar face, local to the pod. Kept inside the floret, clear of the crown.
+POD_SHOULDER = -30.0
+COLLAR_FACE_R = ACOUSTIC_R + POD_SHOULDER
 COLLAR_LEN = 14.0
 COLLAR_OD = 40.0
+# Printed stalk between the crown and the floret. Thicker than the HT pipe
+# so the boom reads as a stem. The HT spigot at the crown stays DN 32.
+STALK_R = 22.0
 FLANGE_OD = 40.0
 FLANGE_LEN = 3.0
 LUG_WIDTH = 8.0
@@ -142,20 +143,20 @@ def opposite_distance(i: int) -> float:
     return (a - b).length * ACOUSTIC_R
 
 
-def cap_axis_distance() -> float:
-    """Distance from the origin to the outer cap along every microphone axis."""
-    return SEAT_R
+def shell_radius() -> float:
+    """Outer crown radius. A sphere, so this is the same in every direction."""
+    return HUB_R
 
 
 def cable_length() -> float:
-    """Along-axis run from a T5848 plane to the hub cavity. Same for all six."""
-    return ACOUSTIC_R - (HUB_CAV_H / 2.0) / _CAP_NZ
+    """Straight run from a T5848 plane to the crown cavity. Same everywhere."""
+    return ACOUSTIC_R - HUB_CAV_R
 
 
 def mast_seat_z() -> float:
-    """Pipe stop on the bottom cap. The mast socket is the seventh port."""
-    return -HUB_CAP_Z
+    """Pipe stop inside the lower crown. Blind: the bore does not enter the cavity."""
+    return MAST_SEAT_Z
 
 
 def mast_mouth_z() -> float:
-    return mast_seat_z() - SPIGOT_LEN
+    return MAST_SEAT_Z - MAST_SPIGOT

@@ -1,21 +1,21 @@
 """Printable parts for the 384 mm het68 array.
 
-Core and the power board sit at the origin, inside the seven-port hub, so
-every satellite cable has the same length. The six arms are one part.
+The crown is a sealed sphere, so every direction sees the same body.
+Six identical stalks end in florets. The mast is the stem.
 """
 
 from __future__ import annotations
 
-import math
-
 from build123d import (
     Align,
     Box,
+    Cone,
     Cylinder,
     Plane,
     Polyline,
     Pos,
     Rot,
+    Sphere,
     Vector,
     extrude,
     make_face,
@@ -32,17 +32,11 @@ from params import (
     COLLAR_FACE_R,
     COLLAR_LEN,
     COLLAR_OD,
-    CORE_Y,
-    CORE_Z,
     FLANGE_LEN,
     FLANGE_OD,
     GROOVE_DEPTH,
     GROOVE_WIDTH,
-    HUB_CAP_Z,
-    HUB_CAV_H,
     HUB_CAV_R,
-    HUB_FLANGE_R,
-    HUB_FLANGE_T,
     HUB_R,
     KEY_HEIGHT,
     KEY_LENGTH,
@@ -53,19 +47,21 @@ from params import (
     LUG_RADIAL,
     LUG_WIDTH,
     MOUNT_HOLES,
+    MAST_SEAT_Z,
     MOUTH_R,
     ORING_CORD,
+    POD_SHOULDER,
     PCB_T,
     PIPE_ID,
     PIPE_OD,
     POD_WALL,
-    RAIL_CLEAR,
     SCREW_D,
     SEAT_R,
     SOCKET_ID,
     SOCKET_WALL,
     SPIGOT_LEN,
     SPIGOT_OD,
+    STALK_R,
     Frame,
     board_local,
     mast_mouth_z,
@@ -101,6 +97,12 @@ def _tube(frame: Frame, z0: float, z1: float, r_out: float, r_in: float):
 def _solid_cyl(frame: Frame, z0: float, z1: float, radius: float):
     length = z1 - z0
     body = Cylinder(radius, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return frame.plane_at(z0) * body
+
+
+def _root(frame: Frame, z0: float, z1: float, r0: float, r1: float):
+    """Taper along frame.n. Wider at z0, where the stalk leaves the crown."""
+    body = Cone(r0, r1, z1 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return frame.plane_at(z0) * body
 
 
@@ -143,10 +145,13 @@ def arm():
     bore = PIPE_ID / 2
     tip = COLLAR_FACE_R - SEAT_R  # local Z of the collar's outer face
     collar0 = tip - COLLAR_LEN
+    # Thick stem stops before the collar, so the collar can pass the floret's bore.
+    stalk_end = collar0 - 6.0
     parts = [
         _tube(frame, 0, SPIGOT_LEN, SPIGOT_OD / 2, bore),
         _tube(frame, SPIGOT_LEN, SPIGOT_LEN + FLANGE_LEN, FLANGE_OD / 2, bore),
-        _tube(frame, SPIGOT_LEN + FLANGE_LEN, collar0, PIPE_OD / 2, bore),
+        _tube(frame, SPIGOT_LEN + FLANGE_LEN, stalk_end, STALK_R, bore),
+        _tube(frame, stalk_end, collar0, COLLAR_OD / 2, bore),
         _tube(frame, collar0, tip, COLLAR_OD / 2, bore),
     ]
     # Clocking rib, proud of the spigot, stopped short of the tip face.
@@ -172,6 +177,11 @@ def arm():
             LUG_AXIAL,
         )
     )
+    # Bell slides over the crown socket so rain runs off the joint.
+    boss_r = SOCKET_ID / 2 + SOCKET_WALL
+    # Short hood over the socket mouth. It stays clear of the root bulb.
+    parts.append(_tube(frame, SPIGOT_LEN - 6.0, SPIGOT_LEN + 0.3, boss_r + 2.8, boss_r + 0.5))
+    parts.append(_tube(frame, SPIGOT_LEN - 0.4, SPIGOT_LEN + FLANGE_LEN, boss_r + 2.8, bore))
     return _fuse(parts)
 
 
@@ -192,34 +202,41 @@ def pod():
     covers the T5848 port. An L-slot on the collar clocks the RJ45 edge to
     the same side as the arm lug.
     """
-    fx0, fy0 = board_local(0.0, 0.0)
-    fx1, fy1 = board_local(BOARD_W, BOARD_H)
     cx, cy = _board_center()
     cav_x = BOARD_W + 2 * BOARD_CLEAR
     cav_y = BOARD_H + 2 * BOARD_CLEAR
-    outer_x = cav_x + 2 * POD_WALL
-    outer_y = cav_y + 2 * POD_WALL
-    back = -70.0
-    shoulder = -32.0  # collar outer face
+    shoulder = POD_SHOULDER
     mouth = shoulder - COLLAR_LEN - 2.0
-    skirt = mouth - 16.0
+    cav_front = -PCB_T
+    cav_back = -32.0
 
-    shell = Pos(cx, cy, (0 + back) / 2) * Box(outer_x, outer_y, -back)
-    # Board slides in from the hub and stops on the inside of a 1.6 mm front
-    # wall. Only the microphone port and the LED ring are open.
-    front_inside = -PCB_T
-    void = Pos(cx, cy, (back + front_inside) / 2) * Box(
-        cav_x, cav_y, (front_inside - back) + 0.05
+    # Three overlapping buds along the board. The port bud is the one at +Y.
+    lobes = [
+        Pos(0, cy - 24.0, -16) * Sphere(42),
+        Pos(0, cy, -16) * Sphere(40),
+        Pos(0, cy + 18.0, -14) * Sphere(46),
+    ]
+    bud = _fuse(lobes)
+    bud -= Pos(0, 0, 60) * Box(260, 320, 120)
+    # Hood over the thick stem. Its bore is wider than the collar, so the
+    # collar slides through and seats in the tighter bore beyond.
+    hood = Pos(0, 0, -56) * Cylinder(STALK_R + 5.0, 14)
+    shell = bud + hood
+    void = Pos(cx, cy, (cav_back + cav_front) / 2) * Box(
+        cav_x, cav_y, (cav_front - cav_back) + 0.05
     )
     mic = Cylinder(3.2, 8, align=(Align.CENTER, Align.CENTER, Align.CENTER))
-    # LED ring is open through the front wall. The separate window covers it.
     led_outer = Cylinder(LED_RING_R + 4.2, 6)
     led_inner = Cylinder(LED_RING_R - 4.0, 8)
     led = led_outer - led_inner
+    # Shallow seat for the cover. The centre web around the microphone stays.
+    lap = Pos(0, 0, -0.4) * Cylinder(LED_RING_R + 6.4, 1.0)
+    lap -= Pos(0, 0, -0.4) * Cylinder(LED_RING_R - 3.8, 2.2)
 
-    # Socket: skirt grips the tube, then a larger bore holds the collar.
-    skirt_bore = Pos(0, 0, (skirt + mouth) / 2) * Cylinder(
-        PIPE_OD / 2 + 0.35, mouth - skirt + 0.2
+    # Hood bore first (wide), then the collar bore. The collar never has to
+    # pass a hole smaller than itself.
+    hood_bore = Pos(0, 0, (-63 + mouth) / 2) * Cylinder(
+        STALK_R + 0.6, mouth + 63 + 0.4
     )
     collar_bore = Pos(0, 0, (mouth + shoulder) / 2) * Cylinder(
         COLLAR_OD / 2 + 0.45, abs(shoulder - mouth) + 0.2
@@ -227,7 +244,7 @@ def pod():
     # Shoulder is the blind end of collar_bore at z=shoulder. Extend it a
     # hair past the shoulder so the boolean face is clean, but not into the
     # board cavity (cavity ends near z=-1.6, shoulder is -32).
-    cuts = [void, mic, led, skirt_bore, collar_bore]
+    cuts = [void, mic, led, lap, hood_bore, collar_bore]
     # L-slot. Entry is twisted off the locked angle and runs in from the mouth.
     # The circumferential run ends on the key side, which is the locked pose.
     slot_r = COLLAR_OD / 2 + LUG_RADIAL / 2
@@ -265,18 +282,13 @@ def pod():
     posts = []
     for hx, hy in MOUNT_HOLES:
         lx, ly = board_local(hx, hy)
-        post = Pos(lx, ly, -8.4) * Cylinder(
-            4.2, 10, align=(Align.CENTER, Align.CENTER, Align.CENTER)
+        post = Pos(lx, ly, -8.0) * Cylinder(
+            4.2, 14, align=(Align.CENTER, Align.CENTER, Align.CENTER)
         )
-        hole = Pos(lx, ly, -8.4) * Cylinder(
-            1.6, 11, align=(Align.CENTER, Align.CENTER, Align.CENTER)
+        hole = Pos(lx, ly, -8.0) * Cylinder(
+            1.6, 16, align=(Align.CENTER, Align.CENTER, Align.CENTER)
         )
         posts.append(post - hole)
-        # Rib to the nearest long wall so the post is not floating.
-        wall_y = cy + (cav_y / 2) * (1 if ly > cy else -1)
-        rib_y = (ly + wall_y) / 2
-        rib_len = abs(wall_y - ly) + 2
-        posts.append(Pos(lx, rib_y, -7.5) * Box(3.2, rib_len, 6))
     return _fuse([body, *posts])
 
 
@@ -298,28 +310,24 @@ def pod_window():
     return flange + spigot + web + lip
 
 
-def _hub_screws():
-    """Six bolts on the equator, between the socket azimuths."""
-    radius = HUB_R + 8.0
-    holes = []
-    span = HUB_FLANGE_T * 2 + 2
-    for k in range(6):
-        ang = math.radians(30 + 60 * k)
-        holes.append(
-            Pos(radius * math.cos(ang), radius * math.sin(ang), 0)
-            * Cylinder(SCREW_D / 2, span)
-        )
-    return holes
+def _hub_lugs(sign: float):
+    """Screw pads in the cavity, clear of the 160 × 100 stack."""
+    pads = []
+    for x, y in ((86.0, 0.0), (-86.0, 0.0), (0.0, 66.0), (0.0, -66.0)):
+        pad = Pos(x, y, sign * 4.5) * Cylinder(5.0, 9)
+        hole = Pos(x, y, sign * 4.5) * Cylinder(SCREW_D / 2, 12)
+        pads.append(pad - hole)
+    return pads
 
 
 def _hub_oring():
-    """Face groove in the lower flange for a 2.5 mm cord. Opens upward."""
-    radius = (HUB_R + HUB_FLANGE_R) / 2
-    half_w = ORING_CORD * 0.75
-    depth = 1.7
-    z = -depth / 2 + 0.25
-    outer = Pos(0, 0, z) * Cylinder(radius + half_w, depth + 0.5)
-    inner = Pos(0, 0, z) * Cylinder(radius - half_w, depth + 1.6)
+    """Groove in the lower equator face. The outside of the crown stays a sphere."""
+    radius = (HUB_R + HUB_CAV_R) / 2
+    half_w = ORING_CORD * 0.7
+    depth = 1.6
+    z = -depth / 2 + 0.2
+    outer = Pos(0, 0, z) * Cylinder(radius + half_w, depth + 0.4)
+    inner = Pos(0, 0, z) * Cylinder(radius - half_w, depth + 1.4)
     return outer - inner
 
 
@@ -339,54 +347,49 @@ def _socket_grooves(frames):
     return grooves
 
 
-def _hub_half(upper: bool):
-    """Clamshell around the centered stack. Upper and lower each carry three arms."""
-    sign = 1.0 if upper else -1.0
-    z_outer = HUB_CAP_Z
-    z0, z1 = (0.0, z_outer) if upper else (-z_outer, 0.0)
-    shell = Pos(0, 0, (z0 + z1) / 2) * Cylinder(HUB_R, z1 - z0)
-    flange = Pos(0, 0, sign * HUB_FLANGE_T / 2) * Cylinder(HUB_FLANGE_R, HUB_FLANGE_T)
-    flange -= Pos(0, 0, sign * HUB_FLANGE_T / 2) * Cylinder(HUB_R - 0.2, HUB_FLANGE_T + 2)
+def _half_ball(upper: bool):
+    ball = Sphere(HUB_R)
+    # Box covers the unwanted hemisphere and stops on the equator.
+    cutter = Pos(0, 0, (-1 if upper else 1) * HUB_R) * Box(HUB_R * 4, HUB_R * 4, HUB_R * 2)
+    return ball - cutter
 
+
+def _hub_half(upper: bool):
+    """Half of the spherical crown. Three stalks each; the stem is on the lower half."""
+    sign = 1.0 if upper else -1.0
     frames = mic_frames()[:3] if upper else mic_frames()[3:]
     r_boss = SOCKET_ID / 2 + SOCKET_WALL
-    bosses = [_solid_cyl(frame, SEAT_R - 8.0, MOUTH_R, r_boss) for frame in frames]
-    parts = [shell, flange, *bosses]
+    # Flare where the stalk leaves the sphere, then a straight socket the bell covers.
+    roots = [_root(frame, HUB_R - 8.0, HUB_R + 6.0, 34.0, r_boss) for frame in frames]
+    bosses = [_solid_cyl(frame, HUB_R + 2.0, MOUTH_R, r_boss) for frame in frames]
+    parts = [_half_ball(upper), *roots, *bosses]
     if not upper:
-        seat = mast_seat_z()
         mouth = mast_mouth_z()
-        parts.append(Pos(0, 0, (seat + mouth) / 2) * Cylinder(r_boss, seat - mouth))
+        # Stem: wide root, straight socket, drip ring at the open end.
+        parts.append(Pos(0, 0, -(HUB_R + 8.0)) * Cone(r_boss, 34.0, 16.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        parts.append(
+            Pos(0, 0, (mouth + (-HUB_R - 4)) / 2) * Cylinder(r_boss, (-HUB_R - 4) - mouth)
+        )
+        parts.append(Pos(0, 0, mouth + 3) * Cylinder(r_boss + 3.5, 5))
     body = _fuse(parts)
 
-    cav_h = HUB_CAV_H / 2 + 1.0
-    cav_z = sign * (HUB_CAV_H / 4 - 0.5)
-    cavity = Pos(0, 0, cav_z) * Cylinder(HUB_CAV_R, cav_h)
+    cavity = Sphere(HUB_CAV_R + (0.0 if upper else 0.4))
     bores = [
-        _solid_cyl(frame, SEAT_R - 16.0, MOUTH_R + 1.0, SOCKET_ID / 2) for frame in frames
+        _solid_cyl(frame, SEAT_R - 6.0, MOUTH_R + 1.0, SOCKET_ID / 2) for frame in frames
     ]
-    cuts = [cavity, *bores, *_socket_grooves(frames), *_hub_screws()]
+    cuts = [cavity, *bores, *_socket_grooves(frames)]
     if not upper:
-        seat = mast_seat_z()
         mouth = mast_mouth_z()
-        cuts.append(
-            Pos(0, 0, (mouth + seat) / 2) * Cylinder(SOCKET_ID / 2, (seat - mouth) + 1.0)
-        )
-        cuts.append(
-            Pos(0, 0, (seat - HUB_CAV_H / 2) / 2)
-            * Cylinder(9.0, abs(seat + HUB_CAV_H / 2) + 4.0)
-        )
+        seat = mast_seat_z()
+        cuts.append(Pos(0, 0, (mouth + seat) / 2) * Cylinder(SOCKET_ID / 2, seat - mouth + 0.6))
         cuts.append(_hub_oring())
     body = _cut(body, cuts)
-
-    # Short rails clear of the six bores, which enter on a circle near the caps.
-    rail_y = CORE_Y / 2 + RAIL_CLEAR / 2 + 1.6
-    rail_z = sign * (CORE_Z / 2 + 3.0)
-    for side in (-1, 1):
-        body += Pos(0, side * rail_y, rail_z) * Box(70, 3.2, 6)
+    body += _fuse(_hub_lugs(sign))
     if upper:
-        skirt_r = HUB_CAV_R - 0.8
-        skirt = Pos(0, 0, -2.0) * (Cylinder(skirt_r, 4) - Cylinder(skirt_r - 2.4, 6))
-        body += skirt
+        # Tongue nests into the lower cavity. The outer surface stays flush.
+        tongue_r = HUB_CAV_R - 0.7
+        tongue = Pos(0, 0, -1.6) * (Cylinder(tongue_r, 3.2) - Cylinder(tongue_r - 2.6, 5))
+        body += tongue
     return body
 
 
@@ -426,13 +429,11 @@ def marks():
     """
     frame = mic_frames()[0]
     cy = _board_center()[1]
-    cav_y = BOARD_H + 2 * BOARD_CLEAR
-    offset = cy + cav_y / 2 + POD_WALL
     north = Vector(1, 0, 0)
     # Pod local +X is frame.x and local +Z is frame.n. North projected onto
-    # the up face (normal +Y) is the arrow's length direction.
+    # the up side of the port bud is the arrow's length direction.
     direction = Vector(frame.x.dot(north), 0, frame.n.dot(north)).normalized()
-    origin = Vector(0, offset - 0.05, -16) - direction * (ARROW_LENGTH / 2)
+    origin = Vector(0, cy + 18.0 + 46.0, -14) - direction * (ARROW_LENGTH / 2)
     plane = Plane(origin=origin, x_dir=direction, z_dir=Vector(0, 1, 0))
     return plane * _arrow()
 

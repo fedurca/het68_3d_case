@@ -93,10 +93,9 @@ def main():
         "\n".join(
             [
                 "Stožár je skladová trubka HT DN 32, není to tištěný díl.",
-                "Do spodního hrdla sedmispojky se zasouvá 40 mm.",
-                f"Kabel od každého T5848 k dutině ve středu měří {cable_length():.1f} mm.",
-                "Šest tištěných ramen je stejný díl. Hladkou trubku místo ramene",
-                "lze použít jen když na ní zůstane žebro a bajonetový zub.",
+                "Do slepého hrdla stonku se zasouvá 40 mm.",
+                f"Od každého T5848 ke kulové dutině je to {cable_length():.1f} mm, ve všech směrech stejně.",
+                "Šest tištěných stopek je stejný díl.",
                 "",
             ]
         ),

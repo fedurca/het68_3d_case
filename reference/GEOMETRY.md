@@ -38,7 +38,15 @@ MIC_DIR (jednotkové, pořadí USB 1…6)
 
 `doa.c` na větvi main bez přepínače používá hranu 128 mm (`DOA_EDGE_MM`). Release workflow firmwaru sestavuje s `HET68_DOA_EDGE_MM=128`. Tento kryt je na 384 mm, firmware se má překládat `HET68_DOA_EDGE_MM=384`.
 
-Starý kříž na fotce má jedno rameno svisle a stožár v dolním portu. To s `MIC_DIR` nesedí. Desky jsou ve středu sedmispojky, protože kabely od satelitů mají společný limit délky. Plášť je válec, takže všech šest ramen vidí stejnou překážku ve stejné vzdálenosti. Samostatná skříň pod dolním vrcholem by horní a dolní kabely rozhodila.
+Starý kříž na fotce má jedno rameno svisle a stožár v dolním portu. To s `MIC_DIR` nesedí. Desky jsou ve středu koule, protože kabely od satelitů mají společný limit délky. Plášť je koule, takže odraz je stejný v každém směru. Šest stopek a růžiček je jeden díl.
+
+## Tisknutelný kryt
+
+Koruna je koule Ø220 mm, dutina Ø204 mm, řez v rovníku bez vnější příruby. O-kroužek Ø2,5 mm sedí v drážce na spodní ploše, horní půlka má jazýček do dutiny. Od membrány k dutině je 90 mm v každém směru.
+
+Stopka je jeden díl. Čep Ø31,7 × 28 mm vleze do tištěného hrdla Ø32,4 mm, zvon kryje spoj. Stonek má Ø44 mm a díru Ø28,4 mm. Límec Ø40 mm nese jeden bajonetový zub, pootočení 30° a zámek směrem k zemi.
+
+Růžička jsou tři koule seříznuté v rovině portu. Ven vede otvor T5848 a prstenec LED, víčko se lepí do osazení. Návlek kryje límec stopky. Stožár HT DN 32 se do stonku zasouvá 40 mm a hrdlo je slepé, do dutiny neústí.
 
 ## Desky
 
