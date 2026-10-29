@@ -10,19 +10,17 @@ from build123d import Vector
 
 from params import (
     ACOUSTIC_R,
-    BOX_CAV_Z0,
-    BOX_CAV_Z1,
-    BOX_IN_X,
-    BOX_IN_Y,
-    BOX_IN_Z,
     COLLAR_FACE_R,
     COLLAR_OD,
-    GROOVE_DEPTH,
-    KEY_HEIGHT,
     CORE_X,
     CORE_Y,
     CORE_Z,
     EDGE_MM,
+    GROOVE_DEPTH,
+    HUB_CAP_Z,
+    HUB_CAV_H,
+    HUB_CAV_R,
+    KEY_HEIGHT,
     LUG_FROM_FACE,
     LUG_RADIAL,
     MIC_DIR,
@@ -32,10 +30,11 @@ from params import (
     SOCKET_ID,
     SPIGOT_LEN,
     SPIGOT_OD,
+    cable_length,
+    cap_axis_distance,
+    mast_mouth_z,
     mast_seat_z,
     opposite_distance,
-    spine_cut_length,
-    spine_seats,
 )
 
 
@@ -64,19 +63,23 @@ def check_baselines():
             else:
                 assert abs(dot) < 0.01, (i, j, dot)
     assert abs(ACOUSTIC_R - EDGE_MM / 2) < 1e-9
-    hub, lid = spine_seats()
-    assert lid < hub < 0
-    assert lid > BOX_CAV_Z1, (lid, BOX_CAV_Z1)
-    assert mast_seat_z() < BOX_CAV_Z0
-    assert spine_cut_length() > SPIGOT_LEN * 2
-    # Lower microphones stay above the electronics box.
-    for raw in MIC_DIR[3:]:
-        z = raw[2] * ACOUSTIC_R
-        assert z > BOX_CAV_Z1 + 20, z
-    # Stack envelope fits the cavity with the rails' 0.8 mm side clearance.
-    assert BOX_IN_X >= CORE_X + 4
-    assert BOX_IN_Y >= CORE_Y + 0.8
-    assert BOX_IN_Z >= CORE_Z + 4
+    # Every microphone meets the hub cap at the same distance, and the cable
+    # run from that cap's cavity to the membrane is the same length.
+    assert abs(cap_axis_distance() - SEAT_R) < 1e-9
+    reaches = []
+    cables = []
+    for raw in MIC_DIR:
+        reaches.append(HUB_CAP_Z / abs(raw[2]))
+        cables.append(ACOUSTIC_R - (HUB_CAV_H / 2) / abs(raw[2]))
+    assert max(reaches) - min(reaches) < 0.05, reaches
+    assert max(cables) - min(cables) < 0.05, cables
+    assert abs(cables[0] - cable_length()) < 0.05
+    # Stack centered in the round cavity: corners clear the wall, height clear of the caps.
+    corner = math.hypot(CORE_X / 2, CORE_Y / 2)
+    assert corner < HUB_CAV_R - 4, corner
+    assert CORE_Z / 2 < HUB_CAV_H / 2 - 4
+    assert mast_mouth_z() == mast_seat_z() - SPIGOT_LEN
+    assert mast_seat_z() == -HUB_CAP_Z
     # Bayonet lug and pod slot share one station along the arm.
     arm_tip = COLLAR_FACE_R - SEAT_R
     lug_along = SEAT_R + (arm_tip - LUG_FROM_FACE)
@@ -142,7 +145,7 @@ def _clusters(radii, gap=0.6):
     return [sum(g) / len(g) for g in groups if len(g) > 8]
 
 
-def check_solids(arm_part, hub_part, pod_part, window_part, box_part):
+def check_solids(arm_part, hub_lower, hub_upper, pod_part, window_part):
     """Fit checks on the solids, before they are meshed."""
     from parts import place
     from params import LED_RING_R, PCB_T, mic_frames as frames_fn
@@ -175,13 +178,18 @@ def check_solids(arm_part, hub_part, pod_part, window_part, box_part):
     assert not inside(window_part, (0, 0, 1.0))
     assert inside(window_part, (LED_RING_R, 0, 0.6))
 
-    # Core envelope sits in the lower cavity, clear of the walls.
-    assert not inside(box_part, (70, 40, -320))
-    assert inside(box_part, (BOX_IN_X / 2 + 1.2, 0, -340))
-    # Cable hole through the floor; the floor beside it stays closed.
-    assert not inside(box_part, (0, 0, -354))
-    assert inside(box_part, (14, 0, -354))
-    assert not inside(hub_part, frames[0].point(50))
+    # Core envelope is air at the origin. The cap beside the mast hole stays closed.
+    assert not inside(hub_lower, (70, 40, -20))
+    assert not inside(hub_upper, (70, 40, 20))
+    assert inside(hub_lower, (20, 0, -38))
+    assert not inside(hub_lower, (0, 0, -38))
+    # Each microphone bore is open, and the two halves do not occupy each other.
+    for frame in frames:
+        assert not inside(hub_lower if frame.n.Z < 0 else hub_upper, frame.point((SEAT_R + MOUTH_R) / 2))
+    overlap = hub_lower.intersect(hub_upper)
+    if overlap is not None:
+        solids = overlap.solids() if hasattr(overlap, "solids") else [overlap]
+        assert sum(solid.volume for solid in solids) < 1.0
 
 
 def check_meshes(stl_dir: Path):
@@ -198,20 +206,18 @@ def check_meshes(stl_dir: Path):
     assert any(abs(r - PIPE_ID / 2) < 0.2 for r in clusters), clusters
     assert any(abs(r - COLLAR_OD / 2) < 0.35 for r in clusters), clusters
 
-    hub = stl_dir / "hub.stl"
-    # Mouth of mic 1 is not on a coordinate axis. Check the spine socket,
-    # which is along -Z: a section just inside the mouth.
-    mouth_z = -MOUTH_R + 2.0
+    hub = stl_dir / "hub_lower.stl"
+    # Mast socket is along −Z. Section just inside its mouth.
+    mouth_z = mast_mouth_z() + 2.0
     hub_r = _clusters(_section_radii(hub, mouth_z))
     assert any(abs(r - SOCKET_ID / 2) < 0.25 for r in hub_r), hub_r
 
     for name in (
-        "hub.stl",
+        "hub_lower.stl",
+        "hub_upper.stl",
         "arm.stl",
         "pod.stl",
         "pod_window.stl",
-        "electronics_box.stl",
-        "electronics_lid.stl",
         "marks.stl",
     ):
         verts = _load_stl(stl_dir / name)
@@ -229,7 +235,7 @@ def main():
     root = Path(__file__).resolve().parents[1]
     check_meshes(root / "export" / "stl")
     print("checks ok")
-    print(f"spine cut length {spine_cut_length():.1f} mm")
+    print(f"cable length {cable_length():.1f} mm, same on all six arms")
 
 
 if __name__ == "__main__":

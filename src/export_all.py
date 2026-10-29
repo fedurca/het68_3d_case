@@ -7,17 +7,16 @@ from pathlib import Path
 from build123d import export_step, export_stl
 
 from check import check_baselines, check_meshes, check_solids
-from params import ACOUSTIC_R, SEAT_R, mic_frames, spine_cut_length
+from params import ACOUSTIC_R, SEAT_R, cable_length, mic_frames
 from parts import (
     arm,
-    electronics_box,
-    electronics_lid,
-    hub,
+    hub_lower,
+    hub_upper,
     marks,
+    mast_stub,
     place,
     pod,
     pod_window,
-    spine_pipe,
 )
 from render import render_part, render_views
 
@@ -43,29 +42,26 @@ def main():
     for folder in (stl_dir, step_dir, img_dir):
         folder.mkdir(parents=True, exist_ok=True)
 
-    print("building hub")
-    hub_part = hub()
+    print("building hub lower")
+    lower = hub_lower()
+    print("building hub upper")
+    upper = hub_upper()
     print("building arm")
     arm_part = arm()
     print("building pod")
     pod_part = pod()
     print("building window")
     window_part = pod_window()
-    print("building box")
-    box_part = electronics_box()
-    print("building lid")
-    lid_part = electronics_lid()
     print("building mark")
     mark_part = marks()
-    check_solids(arm_part, hub_part, pod_part, window_part, box_part)
+    check_solids(arm_part, lower, upper, pod_part, window_part)
 
     singles = {
-        "hub": hub_part,
+        "hub_lower": lower,
+        "hub_upper": upper,
         "arm": arm_part,
         "pod": pod_part,
         "pod_window": window_part,
-        "electronics_box": box_part,
-        "electronics_lid": lid_part,
         "marks": mark_part,
     }
     for name, part in singles.items():
@@ -75,10 +71,9 @@ def main():
 
     frames = mic_frames()
     assembly = [
-        (hub_part, GREEN_DARK),
-        (spine_pipe(), PIPE),
-        (box_part, GREEN),
-        (lid_part, GREEN_DARK),
+        (lower, GREEN_DARK),
+        (upper, GREEN),
+        (mast_stub(), PIPE),
         (place(mark_part, frames[0], ACOUSTIC_R), ARROW),
     ]
     for frame in frames:
@@ -94,15 +89,14 @@ def main():
     print("rendering assembly")
     render_views(assembly, img_dir, "assembly", views)
 
-    cut = spine_cut_length()
     (ROOT / "export" / "CUT_LENGTHS.txt").write_text(
         "\n".join(
             [
-                "HT DN 32 pipe, not a printed part.",
-                f"Spine from hub seat to electronics-lid seat: {cut:.1f} mm.",
-                "Insert 40 mm into the hub and 40 mm into the lid.",
-                "Six printed arms carry the microphone pods; do not replace those with plain pipe",
-                "unless the clocking rib and the bayonet lug are kept.",
+                "Stožár je skladová trubka HT DN 32, není to tištěný díl.",
+                "Do spodního hrdla sedmispojky se zasouvá 40 mm.",
+                f"Kabel od každého T5848 k dutině ve středu měří {cable_length():.1f} mm.",
+                "Šest tištěných ramen je stejný díl. Hladkou trubku místo ramene",
+                "lze použít jen když na ní zůstane žebro a bajonetový zub.",
                 "",
             ]
         ),

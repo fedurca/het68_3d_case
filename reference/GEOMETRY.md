@@ -38,7 +38,7 @@ MIC_DIR (jednotkové, pořadí USB 1…6)
 
 `doa.c` na větvi main bez přepínače používá hranu 128 mm (`DOA_EDGE_MM`). Release workflow firmwaru sestavuje s `HET68_DOA_EDGE_MM=128`. Tento kryt je na 384 mm, firmware se má překládat `HET68_DOA_EDGE_MM=384`.
 
-Starý kříž na fotce má jedno rameno svisle a stožár v dolním portu. To s `MIC_DIR` nesedí. Plné těleso ve středu pole by stínilo, dokument ke krychli to zakazuje.
+Starý kříž na fotce má jedno rameno svisle a stožár v dolním portu. To s `MIC_DIR` nesedí. Desky jsou ve středu sedmispojky, protože kabely od satelitů mají společný limit délky. Plášť je válec, takže všech šest ramen vidí stejnou překážku ve stejné vzdálenosti. Samostatná skříň pod dolním vrcholem by horní a dolní kabely rozhodila.
 
 ## Desky
 

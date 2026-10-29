@@ -41,10 +41,19 @@ GROOVE_WIDTH = 5.2
 GROOVE_DEPTH = 2.4
 GROOVE_LENGTH = 16.0
 
-SEAT_R = 24.0
-MOUTH_R = SEAT_R + SPIGOT_LEN  # 64 mm
-CAVITY_R = 18.0
-HUB_R = 30.0
+# Core and the power board sit at the origin, inside the seven-port hub.
+# A vertical cylinder keeps every microphone at the same distance from the
+# shell: all six directions share |nz|, so each meets a flat cap together.
+HUB_CAV_R = 102.0
+HUB_CAV_H = 72.0
+HUB_WALL = 3.5
+HUB_R = HUB_CAV_R + HUB_WALL
+HUB_CAP_Z = HUB_CAV_H / 2.0 + HUB_WALL
+HUB_FLANGE_R = HUB_R + 14.0
+HUB_FLANGE_T = 5.0
+_CAP_NZ = abs(MIC_DIR[0][2])
+SEAT_R = HUB_CAP_Z / _CAP_NZ
+MOUTH_R = SEAT_R + SPIGOT_LEN
 
 # Arm collar stops 32 mm behind the acoustic plane.
 COLLAR_FACE_R = ACOUSTIC_R - 32.0  # 160 mm
@@ -73,16 +82,10 @@ PCB_T = 1.6
 LIP = 1.6
 
 # Electronics stack envelope from the v4.5.0 outlines plus the 21700 holder.
+# The stack is centered on the origin. The round cavity is wider than the
+# board so the six angled bores open into it without clipping the wall.
 CORE_X, CORE_Y, CORE_Z = 160.0, 100.0, 54.0
 POWER_X, POWER_Y = 140.0, 80.0
-BOX_IN_X = 176.0
-BOX_IN_Y = 116.0
-BOX_IN_Z = 68.0
-BOX_WALL = 3.0
-BOX_FLANGE = 10.0
-BOX_CAV_Z0 = -350.0
-BOX_CAV_Z1 = BOX_CAV_Z0 + BOX_IN_Z
-BOSS_LEN = 46.0
 RAIL_CLEAR = 0.8
 SCREW_D = 3.4
 ORING_CORD = 2.5
@@ -139,21 +142,20 @@ def opposite_distance(i: int) -> float:
     return (a - b).length * ACOUSTIC_R
 
 
-def spine_seats() -> tuple[float, float]:
-    """World Z of the two pipe seats (hub, then electronics lid)."""
-    hub_seat = -SEAT_R
-    box_top = BOX_CAV_Z1 + BOX_WALL
-    mouth = box_top + BOSS_LEN
-    lid_seat = mouth - SPIGOT_LEN
-    return hub_seat, lid_seat
+def cap_axis_distance() -> float:
+    """Distance from the origin to the outer cap along every microphone axis."""
+    return SEAT_R
 
 
-def spine_cut_length() -> float:
-    hub, lid = spine_seats()
-    return abs(lid - hub)
+def cable_length() -> float:
+    """Along-axis run from a T5848 plane to the hub cavity. Same for all six."""
+    return ACOUSTIC_R - (HUB_CAV_H / 2.0) / _CAP_NZ
 
 
 def mast_seat_z() -> float:
-    box_bot = BOX_CAV_Z0 - BOX_WALL
-    mouth = box_bot - BOSS_LEN
-    return mouth + SPIGOT_LEN
+    """Pipe stop on the bottom cap. The mast socket is the seventh port."""
+    return -HUB_CAP_Z
+
+
+def mast_mouth_z() -> float:
+    return mast_seat_z() - SPIGOT_LEN

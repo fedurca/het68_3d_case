@@ -1,11 +1,12 @@
 """Printable parts for the 384 mm het68 array.
 
-The hub is only a cable junction. Core and the power board live in the box
-under the lower vertex, where no microphone looks. Arms are HT DN 32 tubes
-with one clocking rib at the hub and one bayonet lug at the pod.
+Core and the power board sit at the origin, inside the seven-port hub, so
+every satellite cable has the same length. The six arms are one part.
 """
 
 from __future__ import annotations
+
+import math
 
 from build123d import (
     Align,
@@ -15,7 +16,6 @@ from build123d import (
     Polyline,
     Pos,
     Rot,
-    Sphere,
     Vector,
     extrude,
     make_face,
@@ -29,24 +29,20 @@ from params import (
     BOARD_CLEAR,
     BOARD_H,
     BOARD_W,
-    BOSS_LEN,
-    BOX_CAV_Z0,
-    BOX_CAV_Z1,
-    BOX_FLANGE,
-    BOX_IN_X,
-    BOX_IN_Y,
-    BOX_IN_Z,
-    BOX_WALL,
-    CAVITY_R,
     COLLAR_FACE_R,
     COLLAR_LEN,
     COLLAR_OD,
     CORE_Y,
+    CORE_Z,
     FLANGE_LEN,
     FLANGE_OD,
     GROOVE_DEPTH,
-    GROOVE_LENGTH,
     GROOVE_WIDTH,
+    HUB_CAP_Z,
+    HUB_CAV_H,
+    HUB_CAV_R,
+    HUB_FLANGE_R,
+    HUB_FLANGE_T,
     HUB_R,
     KEY_HEIGHT,
     KEY_LENGTH,
@@ -72,6 +68,8 @@ from params import (
     SPIGOT_OD,
     Frame,
     board_local,
+    mast_mouth_z,
+    mast_seat_z,
     mic_frames,
 )
 
@@ -124,34 +122,14 @@ def _clock_box(frame: Frame, delta_deg: float, along: float, radial: float, size
     return frame.plane_at(0) * placed
 
 
-def hub():
-    """Six microphone sockets plus the downward spine socket."""
-    frames = mic_frames() + [Frame.from_direction((0.0, 0.0, -1.0))]
-    r_out = SOCKET_ID / 2 + SOCKET_WALL
-    bosses = [
-        _solid_cyl(frame, CAVITY_R - 2, MOUTH_R, r_out) for frame in frames
-    ]
-    body = _fuse([Sphere(HUB_R), *bosses])
-    bores = [
-        _solid_cyl(frame, CAVITY_R - 4, MOUTH_R + 1, SOCKET_ID / 2) for frame in frames
-    ]
-    grooves = []
-    for frame in frames:
-        # Side relief at the inner end of the bore. A round pipe still seats.
-        # Our rib fills the relief and sets the rotation.
-        # Full-length relief so the spigot rib can slide in from the mouth.
-        # A plain round pipe still seats; the rib only clocks the printed arm.
-        grooves.append(
-            _side_box(
-                frame,
-                (SEAT_R + MOUTH_R) / 2,
-                SOCKET_ID / 2 + GROOVE_DEPTH / 2 - 0.2,
-                GROOVE_WIDTH,
-                GROOVE_DEPTH + 0.6,
-                (MOUTH_R - SEAT_R) + 4,
-            )
-        )
-    return _cut(body, [Sphere(CAVITY_R), *bores, *grooves])
+def hub_upper():
+    """Top half of the central connector. Three microphone sockets."""
+    return _hub_half(upper=True)
+
+
+def hub_lower():
+    """Bottom half. Three microphone sockets plus the mast socket on the axis."""
+    return _hub_half(upper=False)
 
 
 def _build_frame() -> Frame:
@@ -320,134 +298,107 @@ def pod_window():
     return flange + spigot + web + lip
 
 
-def _box_outer(z0: float, z1: float, wall: float):
-    outer = Box(BOX_IN_X + 2 * wall, BOX_IN_Y + 2 * wall, z1 - z0)
-    outer = Pos(0, 0, (z0 + z1) / 2) * outer
-    return outer
-
-
-def _flange(z_mid: float, thickness: float):
-    width_x = BOX_IN_X + 2 * BOX_WALL + 2 * BOX_FLANGE
-    width_y = BOX_IN_Y + 2 * BOX_WALL + 2 * BOX_FLANGE
-    plate = Pos(0, 0, z_mid) * Box(width_x, width_y, thickness)
-    hole = Pos(0, 0, z_mid) * Box(BOX_IN_X - 1, BOX_IN_Y - 1, thickness + 2)
-    return plate - hole
-
-
-def _screw_holes(z0: float, z1: float):
-    width_x = BOX_IN_X + 2 * BOX_WALL + 2 * BOX_FLANGE
-    width_y = BOX_IN_Y + 2 * BOX_WALL + 2 * BOX_FLANGE
-    inset = 6.0
-    xs = (-width_x / 2 + inset, width_x / 2 - inset)
-    ys = (-width_y / 2 + inset, width_y / 2 - inset)
+def _hub_screws():
+    """Six bolts on the equator, between the socket azimuths."""
+    radius = HUB_R + 8.0
     holes = []
-    for x in xs:
-        for y in ys:
-            holes.append(
-                Pos(x, y, (z0 + z1) / 2)
-                * Cylinder(SCREW_D / 2, (z1 - z0) + 4)
-            )
+    span = HUB_FLANGE_T * 2 + 2
+    for k in range(6):
+        ang = math.radians(30 + 60 * k)
+        holes.append(
+            Pos(radius * math.cos(ang), radius * math.sin(ang), 0)
+            * Cylinder(SCREW_D / 2, span)
+        )
     return holes
 
 
-def _oring_groove(z_face: float):
-    """Groove opening through the flange face. Depth is 1.7 mm for a 2.5 mm cord."""
+def _hub_oring():
+    """Face groove in the lower flange for a 2.5 mm cord. Opens upward."""
+    radius = (HUB_R + HUB_FLANGE_R) / 2
+    half_w = ORING_CORD * 0.75
     depth = 1.7
-    height = depth + 0.8
-    z = z_face - depth / 2 + 0.4
-    width_x = BOX_IN_X + 2 * BOX_WALL + BOX_FLANGE
-    width_y = BOX_IN_Y + 2 * BOX_WALL + BOX_FLANGE
-    outer = Pos(0, 0, z) * Box(width_x, width_y, height)
-    inner = Pos(0, 0, z) * Box(
-        width_x - 2 * ORING_CORD * 1.5,
-        width_y - 2 * ORING_CORD * 1.5,
-        height + 1,
-    )
+    z = -depth / 2 + 0.25
+    outer = Pos(0, 0, z) * Cylinder(radius + half_w, depth + 0.5)
+    inner = Pos(0, 0, z) * Cylinder(radius - half_w, depth + 1.6)
     return outer - inner
 
 
-def electronics_box():
-    """Lower half. Flange faces up. The mast socket hangs under the floor."""
-    z_join = (BOX_CAV_Z0 + BOX_CAV_Z1) / 2
-    z_bot = BOX_CAV_Z0 - BOX_WALL
-    shell = _box_outer(z_bot, z_join, BOX_WALL)
-    cavity = Pos(0, 0, (BOX_CAV_Z0 + z_join) / 2 + 1) * Box(
-        BOX_IN_X, BOX_IN_Y, (z_join - BOX_CAV_Z0) + 4
-    )
-    flange = _flange(z_join - 2.5, 5)
-    body = _fuse([shell, flange]) - cavity
+def _socket_grooves(frames):
+    grooves = []
+    for frame in frames:
+        grooves.append(
+            _side_box(
+                frame,
+                (SEAT_R + MOUTH_R) / 2,
+                SOCKET_ID / 2 + GROOVE_DEPTH / 2 - 0.2,
+                GROOVE_WIDTH,
+                GROOVE_DEPTH + 0.6,
+                (MOUTH_R - SEAT_R) + 4,
+            )
+        )
+    return grooves
 
-    mouth = z_bot - BOSS_LEN
-    seat = mouth + SPIGOT_LEN
-    boss = Pos(0, 0, (z_bot + mouth) / 2) * Cylinder(
-        SOCKET_ID / 2 + SOCKET_WALL, z_bot - mouth
-    )
-    bore = Pos(0, 0, (mouth + seat) / 2) * Cylinder(SOCKET_ID / 2, seat - mouth + 0.4)
-    # North side of the bore, so a rib on +X clocks the mast the same way as the spine.
-    groove = Pos(
-        SOCKET_ID / 2 + GROOVE_DEPTH / 2 - 0.2,
-        0,
-        seat - GROOVE_LENGTH / 2,
-    ) * Box(GROOVE_DEPTH + 1.0, GROOVE_WIDTH, GROOVE_LENGTH)
-    body = _fuse([body, boss])
-    # Pipe stops on the seat. A smaller hole continues into the cavity for the cables.
-    cable = Pos(0, 0, (seat + BOX_CAV_Z0) / 2) * Cylinder(9, (BOX_CAV_Z0 - seat) + 4)
-    body = _cut(
-        body,
-        [bore, cable, groove, _oring_groove(z_join), *_screw_holes(z_join - 6, z_join + 1)],
-    )
 
-    gap = CORE_Y + RAIL_CLEAR
-    rail_z = BOX_CAV_Z0 + 4
-    for sign in (-1, 1):
-        body += Pos(0, sign * (gap / 2 + 1.6), rail_z) * Box(BOX_IN_X - 4, 3.2, 8)
+def _hub_half(upper: bool):
+    """Clamshell around the centered stack. Upper and lower each carry three arms."""
+    sign = 1.0 if upper else -1.0
+    z_outer = HUB_CAP_Z
+    z0, z1 = (0.0, z_outer) if upper else (-z_outer, 0.0)
+    shell = Pos(0, 0, (z0 + z1) / 2) * Cylinder(HUB_R, z1 - z0)
+    flange = Pos(0, 0, sign * HUB_FLANGE_T / 2) * Cylinder(HUB_FLANGE_R, HUB_FLANGE_T)
+    flange -= Pos(0, 0, sign * HUB_FLANGE_T / 2) * Cylinder(HUB_R - 0.2, HUB_FLANGE_T + 2)
+
+    frames = mic_frames()[:3] if upper else mic_frames()[3:]
+    r_boss = SOCKET_ID / 2 + SOCKET_WALL
+    bosses = [_solid_cyl(frame, SEAT_R - 8.0, MOUTH_R, r_boss) for frame in frames]
+    parts = [shell, flange, *bosses]
+    if not upper:
+        seat = mast_seat_z()
+        mouth = mast_mouth_z()
+        parts.append(Pos(0, 0, (seat + mouth) / 2) * Cylinder(r_boss, seat - mouth))
+    body = _fuse(parts)
+
+    cav_h = HUB_CAV_H / 2 + 1.0
+    cav_z = sign * (HUB_CAV_H / 4 - 0.5)
+    cavity = Pos(0, 0, cav_z) * Cylinder(HUB_CAV_R, cav_h)
+    bores = [
+        _solid_cyl(frame, SEAT_R - 16.0, MOUTH_R + 1.0, SOCKET_ID / 2) for frame in frames
+    ]
+    cuts = [cavity, *bores, *_socket_grooves(frames), *_hub_screws()]
+    if not upper:
+        seat = mast_seat_z()
+        mouth = mast_mouth_z()
+        cuts.append(
+            Pos(0, 0, (mouth + seat) / 2) * Cylinder(SOCKET_ID / 2, (seat - mouth) + 1.0)
+        )
+        cuts.append(
+            Pos(0, 0, (seat - HUB_CAV_H / 2) / 2)
+            * Cylinder(9.0, abs(seat + HUB_CAV_H / 2) + 4.0)
+        )
+        cuts.append(_hub_oring())
+    body = _cut(body, cuts)
+
+    # Short rails clear of the six bores, which enter on a circle near the caps.
+    rail_y = CORE_Y / 2 + RAIL_CLEAR / 2 + 1.6
+    rail_z = sign * (CORE_Z / 2 + 3.0)
+    for side in (-1, 1):
+        body += Pos(0, side * rail_y, rail_z) * Box(70, 3.2, 6)
+    if upper:
+        skirt_r = HUB_CAV_R - 0.8
+        skirt = Pos(0, 0, -2.0) * (Cylinder(skirt_r, 4) - Cylinder(skirt_r - 2.4, 6))
+        body += skirt
     return body
 
 
-def electronics_lid():
-    """Upper half. Flange faces down onto the box. Spine socket points at the hub."""
-    z_join = (BOX_CAV_Z0 + BOX_CAV_Z1) / 2
-    z_top = BOX_CAV_Z1 + BOX_WALL
-    shell = _box_outer(z_join, z_top, BOX_WALL)
-    cavity = Pos(0, 0, (z_join + BOX_CAV_Z1) / 2 - 1) * Box(
-        BOX_IN_X, BOX_IN_Y, (BOX_CAV_Z1 - z_join) + 4
-    )
-    flange = _flange(z_join + 2.5, 5)
-    skirt = Pos(0, 0, z_join - 2) * Box(BOX_IN_X - 2.0, BOX_IN_Y - 2.0, 4)
-    skirt_hole = Pos(0, 0, z_join - 2) * Box(BOX_IN_X - 8, BOX_IN_Y - 8, 6)
-    body = _fuse([shell, flange, skirt - skirt_hole]) - cavity
-
-    mouth = z_top + BOSS_LEN
-    seat = mouth - SPIGOT_LEN
-    boss = Pos(0, 0, (z_top + mouth) / 2) * Cylinder(
-        SOCKET_ID / 2 + SOCKET_WALL, mouth - z_top
-    )
-    bore = Pos(0, 0, (mouth + seat) / 2) * Cylinder(SOCKET_ID / 2, mouth - seat + 0.4)
-    groove = Pos(
-        SOCKET_ID / 2 + GROOVE_DEPTH / 2 - 0.2,
-        0,
-        seat + GROOVE_LENGTH / 2,
-    ) * Box(GROOVE_DEPTH + 1.0, GROOVE_WIDTH, GROOVE_LENGTH)
-    body = _fuse([body, boss])
-    cable = Pos(0, 0, (seat + BOX_CAV_Z1) / 2) * Cylinder(9, (seat - BOX_CAV_Z1) + 4)
-    body = _cut(body, [bore, cable, groove, *_screw_holes(z_join - 1, z_join + 6)])
-    return body
-
-
-def spine_pipe():
-    """Visual of the cut HT pipe. Not a printed part; shown in the renders."""
-    hub_z, lid_z = _spine_ends()
-    length = abs(lid_z - hub_z)
-    mid = (hub_z + lid_z) / 2
+def mast_stub():
+    """Visual of the mast. Not a printed part. Inserts 40 mm and continues down."""
+    seat = mast_seat_z()
+    end = mast_mouth_z() - 90.0
+    mid = (seat + end) / 2
+    length = seat - end
     outer = Pos(0, 0, mid) * Cylinder(PIPE_OD / 2, length)
     inner = Pos(0, 0, mid) * Cylinder(PIPE_ID / 2, length + 2)
     return outer - inner
-
-
-def _spine_ends() -> tuple[float, float]:
-    from params import spine_seats
-
-    return spine_seats()
 
 
 def _arrow():
