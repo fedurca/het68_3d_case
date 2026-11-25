@@ -51,6 +51,15 @@ MOUTH_R = SEAT_R + SPIGOT_LEN
 MAST_SPIGOT = 40.0
 # Stop just outside the cavity so the stem socket stays a blind hole.
 MAST_SEAT_Z = -(HUB_CAV_R + 2.0)
+# Three piezoelectric transducers for spatial echolocation. Measured from the
+# Onshape connector: Ø12 holes, 120° apart around the downward axis. On this
+# crown they sit just outside the stem flare, in the gaps between the lower
+# microphones, and the bore continues into the cavity so the cable can pass.
+PIEZO_DIA = 12.0
+PIEZO_AXIS_R = 48.0
+PIEZO_AZ = (0.0, 120.0, 240.0)
+PIEZO_BOSS_R = 11.0
+PIEZO_BOSS_LEN = 6.0
 
 # Collar face, local to the pod. Kept inside the floret, clear of the crown.
 POD_SHOULDER = -30.0

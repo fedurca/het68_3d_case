@@ -85,6 +85,7 @@ def main():
         "iso": ((1.0, -0.85, 0.55), (0.0, 0.0, 1.0)),
         "side": ((0.0, -1.0, 0.15), (0.0, 0.0, 1.0)),
         "top": ((0.15, -0.05, 1.0), (0.0, 1.0, 0.0)),
+        "bottom": ((0.12, -0.08, -1.0), (0.0, 1.0, 0.0)),
     }
     print("rendering assembly")
     render_views(assembly, img_dir, "assembly", views)

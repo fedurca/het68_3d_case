@@ -25,6 +25,9 @@ from params import (
     MAST_SPIGOT,
     MIC_DIR,
     MOUTH_R,
+    PIEZO_AXIS_R,
+    PIEZO_AZ,
+    PIEZO_DIA,
     PIPE_ID,
     POD_SHOULDER,
     SEAT_R,
@@ -190,6 +193,19 @@ def check_solids(arm_part, hub_lower, hub_upper, pod_part, window_part):
     for frame in frames:
         half = hub_lower if frame.n.Z < 0 else hub_upper
         assert not inside(half, frame.point((SEAT_R + MOUTH_R) / 2))
+    # Three piezo holes, 120° apart, open through the lower shell into the cavity.
+    z_out = -math.sqrt(HUB_R**2 - PIEZO_AXIS_R**2)
+    z_in = -math.sqrt(HUB_CAV_R**2 - PIEZO_AXIS_R**2)
+    z_mid = (z_out + z_in) / 2
+    for i, deg in enumerate(PIEZO_AZ):
+        a = math.radians(deg)
+        x = PIEZO_AXIS_R * math.cos(a)
+        y = PIEZO_AXIS_R * math.sin(a)
+        assert not inside(hub_lower, (x, y, z_mid))
+        assert not inside(hub_lower, (x, y, z_in + 2))
+        assert inside(hub_lower, (x + 7 * math.cos(a), y + 7 * math.sin(a), z_mid))
+        nxt = PIEZO_AZ[(i + 1) % len(PIEZO_AZ)]
+        assert abs((nxt - deg) % 360 - 120) < 0.1
     overlap = hub_lower.intersect(hub_upper)
     if overlap is not None:
         solids = overlap.solids() if hasattr(overlap, "solids") else [overlap]

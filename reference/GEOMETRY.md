@@ -48,6 +48,8 @@ Stopka je jeden díl. Čep Ø31,7 × 28 mm vleze do tištěného hrdla Ø32,4 mm
 
 Růžička jsou tři koule seříznuté v rovině portu. Ven vede otvor T5848 a prstenec LED, víčko se lepí do osazení. Návlek kryje límec stopky. Stožár HT DN 32 se do stonku zasouvá 40 mm a hrdlo je slepé, do dutiny neústí.
 
+Podklad k průchodům a měničům je [`stl/spojka-echo.stl`](stl/spojka-echo.stl). Na malé spojce jsou tři díry Ø12 mm po 120° kolem osy dolů, ve vzdálenosti 32 mm od osy. Na koruně Ø220 mm leží stejné díry v mezerách mezi dolními mikrofony, 48 mm od osy stonku, ať nezasáhnou nákružek hrdla. Vrtání každého mikrofonního hrdla pokračuje do dutiny, to je průchod kabelu.
+
 ## Desky
 
 [het68_pcb v4.5.0](https://github.com/fedurca/het68_pcb/releases/tag/v4.5.0):

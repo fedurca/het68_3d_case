@@ -2,7 +2,7 @@
 
 Tisknutelný kryt akustického pole [het68](https://github.com/fedurca/het68). Krychle o hraně 384 mm stojí na vrcholu, mikrofon je ve středu každé stěny a kouká ven po její normále. Protilehlé membrány T5848 jsou od sebe 384 mm.
 
-Core 160 × 100 mm a silová deska 140 × 80 mm z [het68_pcb v4.5.0](https://github.com/fedurca/het68_pcb/releases/tag/v4.5.0) leží ve středu detekční krychle, v kulové koruně. Koruna má v každém směru stejný poloměr, takže odraz od těla je všude stejný. Šest stopek je jeden díl a končí růžičkou s mikrofonem. Kabel od membrány k dutině měří **90 mm** v každém směru. Stonek dolů je stožár.
+Core 160 × 100 mm a silová deska 140 × 80 mm z [het68_pcb v4.5.0](https://github.com/fedurca/het68_pcb/releases/tag/v4.5.0) leží ve středu detekční krychle, v kulové koruně. Koruna má v každém směru stejný poloměr, takže odraz od těla je všude stejný. Šest stopek je jeden díl a končí růžičkou s mikrofonem. Kabel od membrány k dutině měří **90 mm** v každém směru, vrtání hrdla je průchod až do dutiny. Stonek dolů je stožár. Kolem něj jsou tři otvory Ø12 mm po 120° na piezoelektrické měniče.
 
 Koruna je slepená ze dvou polokoulí na O-kroužek, zvenku bez příruby. Stopka překrývá hrdlo zvonem, růžička překrývá stopku návlekem, víčko LED sedí v osazení. Dovnitř vede jen otvor T5848 s límcem na windscreen.
 
@@ -20,6 +20,8 @@ Tělo je zelená ASA, ať sestava čte jako brokolice: kulová koruna, krátké 
 
 ![Půdorys sestavy](export/img/assembly-top.png)
 
+![Pohled zespodu, tři otvory na měniče](export/img/assembly-bottom.png)
+
 Délka kabelu a hloubka zasunutí stožáru jsou v [export/CUT_LENGTHS.txt](export/CUT_LENGTHS.txt).
 
 ## Díly
@@ -28,7 +30,7 @@ Tištěné díly jsou v [export/stl](export/stl) a [export/step](export/step). K
 
 ### Koruna, spodek
 
-Tři dolní stopková hrdla a svislý stonek se slepým hrdlem HT DN 32. V rovníku je drážka na O-kroužek Ø2,5 mm. Čtyři sloupky se šroubem M3 jsou uvnitř, mimo desku.
+Tři dolní stopková hrdla a svislý stonek se slepým hrdlem HT DN 32. Každé hrdlo je provrtané do dutiny, takže kabel ze stopky dojde k deskám. Mezi dolními mikrofony, po 120°, jsou tři otvory Ø12 mm na piezoelektrické měniče. Osa otvorů je svislá, měniče koukají dolů a jejich kabel ústí do dutiny. V rovníku je drážka na O-kroužek Ø2,5 mm. Čtyři sloupky se šroubem M3 jsou uvnitř, mimo desku.
 
 ![Spodní polokoule](export/img/hub_lower.png)
 

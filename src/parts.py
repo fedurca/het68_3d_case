@@ -6,6 +6,8 @@ Six identical stalks end in florets. The mast is the stem.
 
 from __future__ import annotations
 
+import math
+
 from build123d import (
     Align,
     Box,
@@ -52,6 +54,11 @@ from params import (
     ORING_CORD,
     POD_SHOULDER,
     PCB_T,
+    PIEZO_AXIS_R,
+    PIEZO_AZ,
+    PIEZO_BOSS_LEN,
+    PIEZO_BOSS_R,
+    PIEZO_DIA,
     PIPE_ID,
     PIPE_OD,
     POD_WALL,
@@ -347,6 +354,32 @@ def _socket_grooves(frames):
     return grooves
 
 
+def _piezo_ports():
+    """Three downward holes around the stem, 120° apart.
+
+    Each bore starts in a short boss under the crown and opens into the
+    cavity, so the transducer cable reaches the boards.
+    """
+    bosses = []
+    holes = []
+    z_out = -math.sqrt(HUB_R**2 - PIEZO_AXIS_R**2)
+    z_in = -math.sqrt(HUB_CAV_R**2 - PIEZO_AXIS_R**2)
+    z_tip = z_out - PIEZO_BOSS_LEN
+    for deg in PIEZO_AZ:
+        a = math.radians(deg)
+        x = PIEZO_AXIS_R * math.cos(a)
+        y = PIEZO_AXIS_R * math.sin(a)
+        bosses.append(
+            Pos(x, y, (z_tip + z_out + 1.5) / 2)
+            * Cylinder(PIEZO_BOSS_R, (z_out + 1.5) - z_tip)
+        )
+        holes.append(
+            Pos(x, y, (z_tip - 0.4 + z_in + 3.0) / 2)
+            * Cylinder(PIEZO_DIA / 2, (z_in + 3.0) - (z_tip - 0.4))
+        )
+    return bosses, holes
+
+
 def _half_ball(upper: bool):
     ball = Sphere(HUB_R)
     # Box covers the unwanted hemisphere and stops on the equator.
@@ -385,6 +418,12 @@ def _hub_half(upper: bool):
         cuts.append(_hub_oring())
     body = _cut(body, cuts)
     body += _fuse(_hub_lugs(sign))
+    if not upper:
+        # Microphone bores above already open into the cavity: that is the
+        # cable passage. The piezo holes are the same idea for three transducers.
+        bosses, holes = _piezo_ports()
+        body += _fuse(bosses)
+        body = _cut(body, holes)
     if upper:
         # Tongue nests into the lower cavity. The outer surface stays flush.
         tongue_r = HUB_CAV_R - 0.7
