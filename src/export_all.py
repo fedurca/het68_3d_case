@@ -7,18 +7,17 @@ from pathlib import Path
 from build123d import export_step, export_stl
 
 from check import check_baselines, check_meshes, check_solids
-from params import ACOUSTIC_R, SEAT_R, cable_length, mic_frames
+from hub_mesh import render_arrays, write_hub
+from params import ACOUSTIC_R, MAST_SPIGOT, SEAT_R, cable_length, mic_frames
 from parts import (
     arm,
-    hub_lower,
-    hub_upper,
     marks,
     mast_stub,
     place,
     pod,
     pod_window,
 )
-from render import render_part, render_views
+from render import render_mesh, render_part, render_views
 
 GREEN = (0.36, 0.55, 0.32)
 GREEN_DARK = (0.28, 0.46, 0.27)
@@ -42,10 +41,23 @@ def main():
     for folder in (stl_dir, step_dir, img_dir):
         folder.mkdir(parents=True, exist_ok=True)
 
-    print("building hub lower")
-    lower = hub_lower()
-    print("building hub upper")
-    upper = hub_upper()
+    for stale in (
+        "hub_lower.stl",
+        "hub_upper.stl",
+        "hub_lower.step",
+        "hub_upper.step",
+        "hub_lower.png",
+        "hub_upper.png",
+    ):
+        for folder in (stl_dir, step_dir, img_dir):
+            (folder / stale).unlink(missing_ok=True)
+
+    print("placing spojka")
+    write_hub(stl_dir / "hub.stl")
+    hub_verts, hub_tris = render_arrays()
+    print("rendering spojka")
+    render_mesh(hub_verts, hub_tris, GREEN_DARK, img_dir / "hub.png")
+
     print("building arm")
     arm_part = arm()
     print("building pod")
@@ -54,11 +66,9 @@ def main():
     window_part = pod_window()
     print("building mark")
     mark_part = marks()
-    check_solids(arm_part, lower, upper, pod_part, window_part)
+    check_solids(arm_part, pod_part, window_part)
 
     singles = {
-        "hub_lower": lower,
-        "hub_upper": upper,
         "arm": arm_part,
         "pod": pod_part,
         "pod_window": window_part,
@@ -71,8 +81,6 @@ def main():
 
     frames = mic_frames()
     assembly = [
-        (lower, GREEN_DARK),
-        (upper, GREEN),
         (mast_stub(), PIPE),
         (place(mark_part, frames[0], ACOUSTIC_R), ARROW),
     ]
@@ -80,6 +88,7 @@ def main():
         assembly.append((place(arm_part, frame, SEAT_R), GREEN))
         assembly.append((place(pod_part, frame, ACOUSTIC_R), GREEN))
         assembly.append((place(window_part, frame, ACOUSTIC_R), WINDOW))
+    hub_mesh = (hub_verts, hub_tris, GREEN_DARK)
 
     views = {
         "iso": ((1.0, -0.85, 0.55), (0.0, 0.0, 1.0)),
@@ -88,14 +97,15 @@ def main():
         "bottom": ((0.12, -0.08, -1.0), (0.0, 1.0, 0.0)),
     }
     print("rendering assembly")
-    render_views(assembly, img_dir, "assembly", views)
+    render_views(assembly, img_dir, "assembly", views, extra_meshes=(hub_mesh,))
 
     (ROOT / "export" / "CUT_LENGTHS.txt").write_text(
         "\n".join(
             [
                 "Stožár je skladová trubka HT DN 32, není to tištěný díl.",
-                "Do slepého hrdla stonku se zasouvá 40 mm.",
-                f"Od každého T5848 ke kulové dutině je to {cable_length():.1f} mm, ve všech směrech stejně.",
+                f"Do svislého hrdla spojky se zasouvá {MAST_SPIGOT:.0f} mm.",
+                f"Od každého T5848 do středu spojky je to {cable_length():.1f} mm, ve všech směrech stejně.",
+                "Průchod kabelu je provrtané hrdlo spojky.",
                 "Šest tištěných stopek je stejný díl.",
                 "",
             ]

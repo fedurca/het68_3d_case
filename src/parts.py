@@ -1,7 +1,7 @@
 """Printable parts for the 384 mm het68 array.
 
-The crown is a sealed sphere, so every direction sees the same body.
-Six identical stalks end in florets. The mast is the stem.
+The hub is the supplied spojka mesh, placed by hub_mesh. Six identical
+stalks end in florets. The mast is a real pipe in the diagonal port.
 """
 
 from __future__ import annotations
@@ -40,9 +40,6 @@ from params import (
     GROOVE_WIDTH,
     HUB_CAV_R,
     HUB_R,
-    KEY_HEIGHT,
-    KEY_LENGTH,
-    KEY_WIDTH,
     LED_RING_R,
     LUG_AXIAL,
     LUG_FROM_FACE,
@@ -66,6 +63,7 @@ from params import (
     SEAT_R,
     SOCKET_ID,
     SOCKET_WALL,
+    SPOJK_MOUTH_OD_R,
     SPIGOT_LEN,
     SPIGOT_OD,
     STALK_R,
@@ -147,7 +145,12 @@ def _build_frame() -> Frame:
 
 
 def arm():
-    """One microphone boom. The rib and the lug are both on local −Y."""
+    """One microphone boom. The bayonet lug is on local −Y.
+
+    The supplied socket is a round bore with no keyway, so the spigot is a
+    plain cylinder. The bell clears the flared mouth (outer radius 22.5 mm)
+    and its back face starts on the mouth plane, so it does not enter the flare.
+    """
     frame = _build_frame()
     bore = PIPE_ID / 2
     tip = COLLAR_FACE_R - SEAT_R  # local Z of the collar's outer face
@@ -161,18 +164,7 @@ def arm():
         _tube(frame, stalk_end, collar0, COLLAR_OD / 2, bore),
         _tube(frame, collar0, tip, COLLAR_OD / 2, bore),
     ]
-    # Clocking rib, proud of the spigot, stopped short of the tip face.
-    parts.append(
-        _side_box(
-            frame,
-            KEY_LENGTH / 2 + 1.0,
-            SPIGOT_OD / 2 + KEY_HEIGHT / 2,
-            KEY_WIDTH,
-            KEY_HEIGHT,
-            KEY_LENGTH,
-        )
-    )
-    # Bayonet lug on the collar, same clocking as the rib.
+    # Bayonet lug on the collar. The floret slot locks the satellite to it.
     lug_z = tip - LUG_FROM_FACE
     parts.append(
         _side_box(
@@ -184,11 +176,10 @@ def arm():
             LUG_AXIAL,
         )
     )
-    # Bell slides over the crown socket so rain runs off the joint.
-    boss_r = SOCKET_ID / 2 + SOCKET_WALL
-    # Short hood over the socket mouth. It stays clear of the root bulb.
-    parts.append(_tube(frame, SPIGOT_LEN - 6.0, SPIGOT_LEN + 0.3, boss_r + 2.8, boss_r + 0.5))
-    parts.append(_tube(frame, SPIGOT_LEN - 0.4, SPIGOT_LEN + FLANGE_LEN, boss_r + 2.8, bore))
+    bell_in = SPOJK_MOUTH_OD_R + 0.7
+    bell_out = SPOJK_MOUTH_OD_R + 3.6
+    parts.append(_tube(frame, SPIGOT_LEN - 6.0, SPIGOT_LEN + 0.3, bell_out, bell_in))
+    parts.append(_tube(frame, SPIGOT_LEN, SPIGOT_LEN + FLANGE_LEN, bell_out, bore))
     return _fuse(parts)
 
 

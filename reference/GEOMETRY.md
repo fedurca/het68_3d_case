@@ -38,17 +38,17 @@ MIC_DIR (jednotkové, pořadí USB 1…6)
 
 `doa.c` na větvi main bez přepínače používá hranu 128 mm (`DOA_EDGE_MM`). Release workflow firmwaru sestavuje s `HET68_DOA_EDGE_MM=128`. Tento kryt je na 384 mm, firmware se má překládat `HET68_DOA_EDGE_MM=384`.
 
-Starý kříž na fotce má jedno rameno svisle a stožár v dolním portu. To s `MIC_DIR` nesedí. Desky jsou ve středu koule, protože kabely od satelitů mají společný limit délky. Plášť je koule, takže odraz je stejný v každém směru. Šest stopek a růžiček je jeden díl.
+Starý kříž na fotce má jedno rameno svisle a stožár v dolním portu. To s `MIC_DIR` nesedí. Šest stopek a růžiček je jeden díl.
 
 ## Tisknutelný kryt
 
-Koruna je koule Ø220 mm, dutina Ø204 mm, řez v rovníku bez vnější příruby. O-kroužek Ø2,5 mm sedí v drážce na spodní ploše, horní půlka má jazýček do dutiny. Od membrány k dutině je 90 mm v každém směru.
+Střed je síť [`stl/spojka-echo.stl`](stl/spojka-echo.stl), 257764 trojúhelníků, 12 888 284 bajtů. `export/stl/hub.stl` je ta samá síť po otočení. Rodriguesova rotace pošle tělesovou úhlopříčku (1,1,1) na +Z a pootočení +15° kolem Z srovná krychlovou osu +X s mikrofonem 1. +Y padne na mikrofon 2, +Z na mikrofon 3, záporné osy na mikrofony 4…6. Opačná úhlopříčka zůstane na světové ose −Z.
 
-Stopka je jeden díl. Čep Ø31,7 × 28 mm vleze do tištěného hrdla Ø32,4 mm, zvon kryje spoj. Stonek má Ø44 mm a díru Ø28,4 mm. Límec Ø40 mm nese jeden bajonetový zub, pootočení 30° a zámek směrem k zemi.
+Naměřeno na vrcholech sítě. Šest hrdel končí v 60,00 mm od středu. U ústí je díra o poloměru 16,60 mm, po obvodu stejná, bez drážky na pero. Čelo ústí sahá do poloměru 22,50 mm a mezi 55 a 60 mm se na tento poloměr rozšiřuje. Sedmé hrdlo, po úhlopříčce, sahá do 78,23 mm. Tři otvory na měniče jsou v síti, rovnoběžně s tímto hrdlem a po 120° kolem něj.
 
-Růžička jsou tři koule seříznuté v rovině portu. Ven vede otvor T5848 a prstenec LED, víčko se lepí do osazení. Návlek kryje límec stopky. Stožár HT DN 32 se do stonku zasouvá 40 mm a hrdlo je slepé, do dutiny neústí.
+Stopka je jeden díl. Čep Ø31,7 × 28 mm dosedne přírubou na ústí v 60 mm. Zvon má vnitřní poloměr 23,2 mm, ať mine čelo ústí. Stonek má Ø44 mm a díru Ø28,4 mm. Límec Ø40 mm nese jeden bajonetový zub. Růžička je ve 192 mm, takže protilehlé membrány dělí 384 mm.
 
-Podklad k průchodům a měničům je [`stl/spojka-echo.stl`](stl/spojka-echo.stl). Na malé spojce jsou tři díry Ø12 mm po 120° kolem osy dolů, ve vzdálenosti 32 mm od osy. Na koruně Ø220 mm leží stejné díry v mezerách mezi dolními mikrofony, 48 mm od osy stonku, ať nezasáhnou nákružek hrdla. Vrtání každého mikrofonního hrdla pokračuje do dutiny, to je průchod kabelu.
+Od roviny T5848 do středu spojky je 192 mm. Průchod je provrtané hrdlo. Stožár HT DN 32 se do svislého hrdla zasouvá 40 mm. Stoh desek 160 × 100 × 54 mm se do spojky nevejde.
 
 ## Desky
 

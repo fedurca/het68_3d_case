@@ -1,4 +1,5 @@
 Stožár je skladová trubka HT DN 32, není to tištěný díl.
-Do slepého hrdla stonku se zasouvá 40 mm.
-Od každého T5848 ke kulové dutině je to 90.0 mm, ve všech směrech stejně.
+Do svislého hrdla spojky se zasouvá 40 mm.
+Od každého T5848 do středu spojky je to 192.0 mm, ve všech směrech stejně.
+Průchod kabelu je provrtané hrdlo spojky.
 Šest tištěných stopek je stejný díl.

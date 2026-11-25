@@ -20,17 +20,30 @@ def _normalize(v):
     return v / n if n else v
 
 
-def render_views(colored_parts, out_dir: Path, stem: str, views: dict):
+def render_views(colored_parts, out_dir: Path, stem: str, views: dict, extra_meshes=None):
     meshes = []
     for part, color in colored_parts:
         v, t = _tessellate(part)
         if len(t) == 0:
             continue
         meshes.append((v, t, np.array(color, dtype=np.float64)))
+    for verts, tris, color in extra_meshes or ():
+        meshes.append((verts, tris, np.array(color, dtype=np.float64)))
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, (eye, up) in views.items():
         img = _raster(meshes, np.array(eye, dtype=np.float64), np.array(up, dtype=np.float64))
         img.save(out_dir / f"{stem}-{name}.png")
+
+
+def render_mesh(verts, tris, color, path: Path, eye=(1.0, -0.7, 0.55), up=(0.0, 0.0, 1.0), size=800):
+    img = _raster(
+        [(verts, tris, np.array(color, dtype=np.float64))],
+        np.array(eye, dtype=np.float64),
+        np.array(up, dtype=np.float64),
+        size=size,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(path)
 
 
 def render_part(part, color, path: Path):

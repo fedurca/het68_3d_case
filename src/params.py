@@ -40,21 +40,25 @@ GROOVE_WIDTH = 5.2
 GROOVE_DEPTH = 2.4
 GROOVE_LENGTH = 16.0
 
-# Spherical crown. One radius in every direction, so the body each
-# microphone looks back at is the same shape. The stack sits at the origin.
-HUB_CAV_R = 102.0
-HUB_R = 110.0
-# Printed arm seats outside the board. The real mast pipe uses a deeper socket.
-SEAT_R = 96.0
+# Supplied spojka, reference/stl/spojka-echo.stl. Measured on that mesh and
+# used unchanged: each of the six cartesian ports ends at 60 mm, the bore is
+# a round hole of radius 16.60 mm, and the mouth face flares out to 22.50 mm.
+# The seventh port, along the body diagonal, reaches 78.23 mm and points down
+# once the mesh is placed on MIC_DIR.
+SPOJK_MOUTH = 60.0
+SPOJK_BORE_R = 16.60
+SPOJK_MOUTH_OD_R = 22.50
+SPOJK_MAST_MOUTH = 78.23
 SPIGOT_LEN = 28.0
+# The flange lands on the mouth. The spigot fills the outer 28 mm of the bore.
+SEAT_R = SPOJK_MOUTH - SPIGOT_LEN
 MOUTH_R = SEAT_R + SPIGOT_LEN
 MAST_SPIGOT = 40.0
-# Stop just outside the cavity so the stem socket stays a blind hole.
+
+# Radii of the previous spherical crown. The printable hub is the mesh above.
+HUB_CAV_R = 102.0
+HUB_R = 110.0
 MAST_SEAT_Z = -(HUB_CAV_R + 2.0)
-# Three piezoelectric transducers for spatial echolocation. Measured from the
-# Onshape connector: Ø12 holes, 120° apart around the downward axis. On this
-# crown they sit just outside the stem flare, in the gaps between the lower
-# microphones, and the bore continues into the cavity so the cable can pass.
 PIEZO_DIA = 12.0
 PIEZO_AXIS_R = 48.0
 PIEZO_AZ = (0.0, 120.0, 240.0)
@@ -158,14 +162,15 @@ def shell_radius() -> float:
 
 
 def cable_length() -> float:
-    """Straight run from a T5848 plane to the crown cavity. Same everywhere."""
-    return ACOUSTIC_R - HUB_CAV_R
+    """Straight run from a T5848 plane to the centre of the spojka."""
+    return ACOUSTIC_R
 
 
 def mast_seat_z() -> float:
-    """Pipe stop inside the lower crown. Blind: the bore does not enter the cavity."""
-    return MAST_SEAT_Z
+    """Inner end of a 40 mm insertion in the diagonal port."""
+    return -SPOJK_MAST_MOUTH + MAST_SPIGOT
 
 
 def mast_mouth_z() -> float:
-    return MAST_SEAT_Z - MAST_SPIGOT
+    """Mouth of the diagonal port, on world −Z after the mesh is placed."""
+    return -SPOJK_MAST_MOUTH
