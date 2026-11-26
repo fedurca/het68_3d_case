@@ -29,7 +29,6 @@ from params import (
     ARROW_RELIEF,
     BAYONET_TWIST_DEG,
     BOARD_CLEAR,
-    BOARD_H,
     BOARD_W,
     COLLAR_FACE_R,
     COLLAR_LEN,
@@ -62,6 +61,9 @@ from params import (
     ORING_CORD,
     POD_SHOULDER,
     PCB_T,
+    POD_BALL_R,
+    POD_BALL_Z,
+    POD_CAV_BACK,
     POWER_HOLES,
     POWER_X,
     POWER_Y,
@@ -74,6 +76,7 @@ from params import (
     PIPE_ID,
     PIPE_OD,
     POD_WALL,
+    RJ45_COURT,
     RJ45_H,
     SAT_RJ45,
     SCREW_D,
@@ -212,41 +215,23 @@ def _pod_frame() -> Frame:
     return _build_frame()
 
 
-def _board_center() -> tuple[float, float]:
-    x0, y0 = board_local(0.0, 0.0)
-    x1, y1 = board_local(BOARD_W, BOARD_H)
-    return ((x0 + x1) / 2, (y0 + y1) / 2)
-
-
 def pod():
     """Satellite head. The acoustic port is the local origin, on the +Z face.
 
-    The board slides in from the hub side and stops on a lip, so nothing
-    covers the T5848 port. An L-slot on the collar clocks the RJ45 edge to
-    the same side as the arm lug.
+    The shell is one sphere on the microphone axis, so the head looks the
+    same after any roll. The square board is centred on the port and slides
+    in from the hub side until it stops on the lip. The vertical RJ45 points
+    its plug down the stalk; a round tunnel joins that plug to the bore.
     """
-    cx, cy = _board_center()
-    cav_x = BOARD_W + 2 * BOARD_CLEAR
-    cav_y = BOARD_H + 2 * BOARD_CLEAR
     shoulder = POD_SHOULDER
     mouth = shoulder - COLLAR_LEN - 2.0
     cav_front = -PCB_T
-    cav_back = -32.0
+    half = BOARD_W / 2.0 + BOARD_CLEAR
 
-    # Three overlapping buds along the board. The port bud is the one at +Y.
-    lobes = [
-        Pos(0, cy - 24.0, -16) * Sphere(42),
-        Pos(0, cy, -16) * Sphere(40),
-        Pos(0, cy + 18.0, -14) * Sphere(46),
-    ]
-    bud = _fuse(lobes)
-    bud -= Pos(0, 0, 60) * Box(260, 320, 120)
-    # Hood over the thick stem. Its bore is wider than the collar, so the
-    # collar slides through and seats in the tighter bore beyond.
-    hood = Pos(0, 0, -56) * Cylinder(STALK_R + 5.0, 14)
-    shell = bud + hood
-    void = Pos(cx, cy, (cav_back + cav_front) / 2) * Box(
-        cav_x, cav_y, (cav_front - cav_back) + 0.05
+    shell = Pos(0, 0, POD_BALL_Z) * Sphere(POD_BALL_R)
+    shell -= Pos(0, 0, 40) * Box(200, 200, 80)
+    void = Pos(0, 0, (POD_CAV_BACK + cav_front) / 2) * Box(
+        half * 2, half * 2, (cav_front - POD_CAV_BACK) + 0.05
     )
     mic = Cylinder(3.2, 8, align=(Align.CENTER, Align.CENTER, Align.CENTER))
     led_outer = Cylinder(LED_RING_R + 4.2, 6)
@@ -256,21 +241,18 @@ def pod():
     lap = Pos(0, 0, -0.4) * Cylinder(LED_RING_R + 6.4, 1.0)
     lap -= Pos(0, 0, -0.4) * Cylinder(LED_RING_R - 3.8, 2.2)
 
-    # Hood bore first (wide), then the collar bore. The collar never has to
-    # pass a hole smaller than itself.
-    hood_bore = Pos(0, 0, (-63 + mouth) / 2) * Cylinder(
-        STALK_R + 0.6, mouth + 63 + 0.4
+    # The Ø44 stalk nests in the back of the sphere. The collar then steps
+    # into the tighter bore and stops on the shoulder.
+    back = POD_BALL_Z - POD_BALL_R
+    stalk_bore = Pos(0, 0, (back + mouth) / 2) * Cylinder(
+        STALK_R + 0.6, (mouth - back) + 0.6
     )
     collar_bore = Pos(0, 0, (mouth + shoulder) / 2) * Cylinder(
         COLLAR_OD / 2 + 0.45, abs(shoulder - mouth) + 0.2
     )
-    # Shoulder is the blind end of collar_bore at z=shoulder. Extend it a
-    # hair past the shoulder so the boolean face is clean, but not into the
-    # board cavity (cavity ends near z=-1.6, shoulder is -32).
-    # Pocket on the ground side of the RJ45 so the plug sits inside the floret.
     jx, jy = board_local(*SAT_RJ45)
-    pocket = Pos(jx, jy - 14.0, -10.0) * Box(22.0, 32.0, 16.0)
-    cuts = [void, mic, led, lap, hood_bore, collar_bore, pocket]
+    tunnel = Pos(jx, jy, (-14.0 + shoulder - 4.0) / 2) * Cylinder(10.0, 24.0)
+    cuts = [void, mic, led, lap, stalk_bore, collar_bore, tunnel]
     # L-slot. Entry is twisted off the locked angle and runs in from the mouth.
     # The circumferential run ends on the key side, which is the locked pose.
     slot_r = COLLAR_OD / 2 + LUG_RADIAL / 2
@@ -304,15 +286,16 @@ def pod():
 
     body = _cut(shell, cuts)
 
-    # Posts behind the four M3 holes. The board is clamped against the lip.
+    # Posts behind the four M3 holes. The board clamps against the lip and
+    # the screw comes in from the hub side, so the port face stays closed.
     posts = []
+    z_top = -(PCB_T + PCB_T)
+    z_bot = POD_CAV_BACK - 2.0
     for hx, hy in MOUNT_HOLES:
         lx, ly = board_local(hx, hy)
-        post = Pos(lx, ly, -8.0) * Cylinder(
-            4.2, 14, align=(Align.CENTER, Align.CENTER, Align.CENTER)
-        )
-        hole = Pos(lx, ly, -8.0) * Cylinder(
-            1.6, 16, align=(Align.CENTER, Align.CENTER, Align.CENTER)
+        post = Pos(lx, ly, (z_top + z_bot) / 2) * Cylinder(4.2, z_top - z_bot)
+        hole = Pos(lx, ly, z_top) * Cylinder(
+            1.6, 10.0, align=(Align.CENTER, Align.CENTER, Align.MAX)
         )
         posts.append(post - hole)
     return _fuse([body, *posts])
@@ -339,8 +322,8 @@ def pod_window():
 def _stack_posts():
     """Posts on the lower crown for the power board and the core.
 
-    Power holes are a symmetric rectangle. Core holes are the v4.6.0 drills,
-    which sit outside the power board, so those posts rise beside it.
+    Power holes are a symmetric rectangle. Core holes sit outside the power
+    board, so those posts rise beside it.
     """
 
     def one(x: float, y: float, z_top: float):
@@ -365,24 +348,34 @@ def _stack_posts():
 
 
 def electronics():
-    """Envelopes of the v4.6.0 boards. Shown in the open view, not printed."""
+    """Envelopes of the v7.3.1 boards. Shown in the open view, not printed."""
     pwr = Pos(0, 0, PWR_BOARD_Z + PCB_T / 2) * Box(POWER_X, POWER_Y, PCB_T)
     core = Pos(0, 0, CORE_BOARD_Z + PCB_T / 2) * Box(CORE_X, CORE_Y, PCB_T)
     cx, cy = board_world_xy(*CELL_CENTER, POWER_X, POWER_Y)
     cell = Pos(cx, cy, PWR_BOARD_Z - CELL_H / 2) * Rot(Y=90) * Cylinder(CELL_BODY[1] / 2, CELL_BODY[0])
+    x0, y0, x1, y1 = RJ45_COURT
     jacks = []
     for px, py in CORE_RJ45:
-        x, y = board_world_xy(px, py, CORE_X, CORE_Y)
-        jacks.append(Pos(x, y, CORE_BOARD_Z + PCB_T + RJ45_H / 2) * Box(18.0, 16.0, RJ45_H))
+        x, y = board_world_xy(px + (x0 + x1) / 2, py + (y0 + y1) / 2, CORE_X, CORE_Y)
+        jacks.append(
+            Pos(x, y, CORE_BOARD_Z + PCB_T + RJ45_H / 2) * Box(x1 - x0, y1 - y0, RJ45_H)
+        )
     return pwr, core, cell, jacks
 
 
 def _hub_lugs(sign: float):
-    """Screw pads in the cavity, clear of the 160 × 100 stack."""
+    """Equator screw pads. Each one bites into the cavity wall, clear of the core.
+
+    The upper tongue hangs to about z = −3.2, so the lower pad stops above
+    that and the two halves do not share solid.
+    """
+    rad = 8.0
+    center = HUB_CAV_R + 3.0 - rad
+    z_body, height = (4.5, 9.0) if sign > 0 else (-8.2, 8.0)
     pads = []
-    for x, y in ((86.0, 0.0), (-86.0, 0.0), (0.0, 66.0), (0.0, -66.0)):
-        pad = Pos(x, y, sign * 4.5) * Cylinder(5.0, 9)
-        hole = Pos(x, y, sign * 4.5) * Cylinder(SCREW_D / 2, 12)
+    for x, y in ((center, 0.0), (-center, 0.0), (0.0, center), (0.0, -center)):
+        pad = Pos(x, y, z_body) * Cylinder(rad, height)
+        hole = Pos(x, y, sign * 4.0) * Cylinder(SCREW_D / 2, 14)
         pads.append(pad - hole)
     return pads
 
@@ -523,19 +516,17 @@ def _arrow():
 
 
 def marks():
-    """North arrow on the up face of the microphone-1 pod, in the pod's frame.
+    """North arrow on the port face of the microphone-1 head.
 
     Same coordinates as pod.stl, so a second filament lands on that face.
-    The arrow points horizontally north once the pod is on microphone 1.
+    The tail sits on the up side of the face, outside the LED ring, and the
+    head of the arrow points at north once the pod is on microphone 1.
     """
     frame = mic_frames()[0]
-    cy = _board_center()[1]
     north = Vector(1, 0, 0)
-    # Pod local +X is frame.x and local +Z is frame.n. North projected onto
-    # the up side of the port bud is the arrow's length direction.
-    direction = Vector(frame.x.dot(north), 0, frame.n.dot(north)).normalized()
-    origin = Vector(0, cy + 18.0 + 46.0, -14) - direction * (ARROW_LENGTH / 2)
-    plane = Plane(origin=origin, x_dir=direction, z_dir=Vector(0, 1, 0))
+    direction = Vector(frame.x.dot(north), frame.y.dot(north), 0).normalized()
+    origin = -direction * (LED_RING_R + 8.0 + ARROW_LENGTH)
+    plane = Plane(origin=origin, x_dir=direction, z_dir=Vector(0, 0, 1))
     return plane * _arrow()
 
 

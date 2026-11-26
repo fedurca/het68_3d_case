@@ -1,5 +1,5 @@
 Stožár je skladová trubka HT DN 32, není to tištěný díl.
 Do slepého hrdla koruny se zasouvá 40 mm.
-Šest patch kabelů Cat6 s RJ45 je stejných, 400 mm od zástrčky k zástrčce.
+Šest patch kabelů Cat6 s RJ45 je stejných, 340 mm od zástrčky k zástrčce.
 Kabel jde z RJ45 satelitu stopkou do RJ45 na Core. Díra stopky je Ø28,4 mm.
 Šest tištěných stopek je stejný díl.

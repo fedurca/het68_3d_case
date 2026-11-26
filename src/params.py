@@ -42,9 +42,11 @@ GROOVE_DEPTH = 2.4
 GROOVE_LENGTH = 16.0
 
 # Spherical crown. One outer radius in every direction, so each microphone
-# looks back at the same body. The cavity holds the centered v4.6.0 stack.
-HUB_CAV_R = 102.0
-HUB_R = 110.0
+# looks back at the same body. The cavity is the smallest sphere that still
+# clears the centered core: the 160 × 100 mm corners sit at r = 94.8 mm.
+# The wall is 6 mm, which leaves a skin on both sides of the O-ring groove.
+HUB_CAV_R = 97.0
+HUB_R = 103.0
 SPIGOT_LEN = 28.0
 # Spigot tip stays outside the stack. The flange is one spigot further out.
 SEAT_R = 96.0
@@ -64,8 +66,12 @@ PIEZO_AZ = (0.0, 120.0, 240.0)
 PIEZO_BOSS_R = 11.0
 PIEZO_BOSS_LEN = 6.0
 
-# Collar face, local to the pod. Kept inside the floret, clear of the crown.
+# Collar face, local to the pod. Kept inside the head, clear of the crown.
 POD_SHOULDER = -30.0
+# One sphere on the microphone axis, wrapped around the 52 mm square.
+POD_BALL_R = 47.0
+POD_BALL_Z = -12.0
+POD_CAV_BACK = -24.0
 COLLAR_FACE_R = ACOUSTIC_R + POD_SHOULDER
 COLLAR_LEN = 14.0
 COLLAR_OD = 40.0
@@ -82,40 +88,44 @@ LUG_FROM_FACE = 6.0
 # Bayonet enters 30° off the locked clocking, then twists back.
 BAYONET_TWIST_DEG = 30.0
 
-# Satellite, KiCad het68-sat v4.6.0. Origin is a corner of the 50 × 80 board.
-# T5848 and the LED ring share (25, 58). RJ45 is on the inner side, toward y=0.
-BOARD_W = 50.0
-BOARD_H = 80.0
-PORT_ON_BOARD = (25.0, 58.0)
-SAT_RJ45 = (14.0, 16.0)
-LED_RING_R = 12.0
+# Satellite het68_pcb v7.4.0. Square 52 × 52 mm, port at the centre.
+# Edge.Cuts (0, 0)–(52, 52). T5848 at (26, 26). Eight SK6812 on a circle
+# of radius 16 mm. Vertical RJ45 courtyard is centred on (26, 10.4), on
+# the ground side of the port. M3 holes are 4.2 mm in from each corner.
+BOARD_W = 52.0
+BOARD_H = 52.0
+PORT_ON_BOARD = (26.0, 26.0)
+SAT_RJ45 = (26.0, 10.4)
+LED_RING_R = 16.0
 LED_BODY = 5.0
-MOUNT_HOLES = ((42.0, 12.0), (8.0, 40.0), (42.0, 66.0), (8.0, 74.0))
-BOARD_CLEAR = 3.0  # světlost 56 × 86
+MOUNT_HOLES = ((47.8, 4.2), (4.2, 4.2), (47.8, 47.8), (4.2, 47.8))
+BOARD_CLEAR = 2.0
 POD_WALL = 3.0
 PCB_T = 1.6
 LIP = 1.6
-# Amphenol RJHSE538X body, and the IEC 60603-7 plug that has to pass the bore.
-RJ45_H = 13.6
+# Vertical 8P8C housing. The plug that has to pass the bore is IEC 60603-7.
+RJ45_H = 17.0
 RJ45_PLUG_W = 11.7
 RJ45_PLUG_H = 8.0
+# Courtyard of het68:RJ45_Vertical_het68, relative to the footprint origin.
+RJ45_COURT = (-3.80, -13.33, 12.69, 4.17)
 
-# Core 160 × 100 and power 140 × 80, both from het68_pcb v4.6.0, centered.
+# Core 160 × 100 and power 140 × 80. Outlines are unchanged in het68_pcb v7.4.0.
 # Power components face down (21700 toward the mast). Core components face
-# up (the six RJ45 toward the upper hemisphere). Bare faces look at each other.
+# up (six vertical RJ45 toward the upper hemisphere). Bare faces look at each other.
 CORE_X, CORE_Y = 160.0, 100.0
 POWER_X, POWER_Y = 140.0, 80.0
 PWR_BOARD_Z = -2.0
 CORE_BOARD_Z = 8.0
 CELL_H = 23.0  # Keystone 1122 with a 21700 cell, below the power board
-# RJ45 on the core, board coordinates, along the y=10 edge. Order is MIC 1..6.
+# Vertical RJ45 on the core, board coordinates, along y = 7.2. Order is MIC 1..6.
 CORE_RJ45 = (
-    (14.0, 10.0),
-    (38.0, 10.0),
-    (62.0, 10.0),
-    (86.0, 10.0),
-    (110.0, 10.0),
-    (134.0, 10.0),
+    (14.0, 7.2),
+    (38.0, 7.2),
+    (62.0, 7.2),
+    (86.0, 7.2),
+    (110.0, 7.2),
+    (134.0, 7.2),
 )
 # M3 holes, board coordinates. Power holes are a symmetric rectangle.
 POWER_HOLES = ((4.0, 4.0), (4.0, 76.0), (136.0, 4.0), (136.0, 76.0))
@@ -190,13 +200,24 @@ def board_world_xy(px: float, py: float, width: float, height: float) -> tuple[f
 
 
 def stack_points():
-    """Corners of the core, the power board, the cell and the six jacks."""
+    """Corners of the core copper, the six vertical jacks, and the power stack.
+
+    The power rectangle is extended down over the cell, which is smaller than
+    the board, so the check stays conservative without inflating the core up
+    to the top of the jacks.
+    """
     pts = []
-    z0, z1 = CORE_BOARD_Z, CORE_BOARD_Z + PCB_T + RJ45_H
     for x in (-CORE_X / 2, CORE_X / 2):
         for y in (-CORE_Y / 2, CORE_Y / 2):
-            pts.append((x, y, z0))
-            pts.append((x, y, z1))
+            pts.append((x, y, CORE_BOARD_Z))
+            pts.append((x, y, CORE_BOARD_Z + PCB_T))
+    x0, y0, x1, y1 = RJ45_COURT
+    z_jack = CORE_BOARD_Z + PCB_T + RJ45_H
+    for px, py in CORE_RJ45:
+        ox, oy = board_world_xy(px, py, CORE_X, CORE_Y)
+        for dx in (x0, x1):
+            for dy in (y0, y1):
+                pts.append((ox + dx, oy + dy, z_jack))
     z0, z1 = PWR_BOARD_Z - CELL_H, PWR_BOARD_Z + PCB_T
     for x in (-POWER_X / 2, POWER_X / 2):
         for y in (-POWER_Y / 2, POWER_Y / 2):
@@ -208,21 +229,19 @@ def stack_points():
 def cable_length() -> float:
     """Cat6 between a satellite plug and its core plug. Same cut on all six.
 
-    The path is the plug in the floret, the shared stalk, then the run inside
-    the crown to that microphone's jack. All six are cut to the longest one.
+    The plug leaves the satellite jack along the stalk axis, joins the bore,
+    then crosses the crown to that microphone's jack.
     """
     frames = mic_frames()
     lx, ly = board_local(*SAT_RJ45)
     longest = 0.0
     for i, frame in enumerate(frames):
-        start = frame.point(ACOUSTIC_R - 3.2, lx, ly)
-        plug = frame.point(ACOUSTIC_R - 3.2, lx, ly - 22.0)
-        bore = frame.point(ACOUSTIC_R - 28.0)
+        start = frame.point(ACOUSTIC_R - 2 * PCB_T, lx, ly)
+        plug = frame.point(ACOUSTIC_R - 30.0, lx, ly)
+        bore = frame.point(ACOUSTIC_R - 40.0)
         mouth = frame.point(HUB_CAV_R + 2.0)
         jx, jy = board_world_xy(*CORE_RJ45[i], CORE_X, CORE_Y)
-        jack = Vector(jx, jy, CORE_BOARD_Z + PCB_T)
-        # Step outside the stack before crossing the cavity, so the length
-        # is a path the cable can actually take.
+        jack = Vector(jx, jy, CORE_BOARD_Z + PCB_T + RJ45_H)
         side = Vector(mouth.X, mouth.Y, jack.Z)
         run = 0.0
         prev = start

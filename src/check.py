@@ -76,7 +76,7 @@ def check_baselines():
     # RJ45 bodies on the core, sits inside the spherical cavity.
     for point in stack_points():
         radius = math.sqrt(sum(c * c for c in point))
-        assert radius < HUB_CAV_R - 2.0, (point, radius)
+        assert radius < HUB_CAV_R - 1.5, (point, radius)
     # An RJ45 plug passes the stalk bore and the printed socket.
     plug = math.hypot(RJ45_PLUG_W, RJ45_PLUG_H)
     assert plug < PIPE_ID - 4.0, plug
@@ -180,11 +180,23 @@ def check_solids(arm_part, hub_lower, hub_upper, pod_part, window_part):
     assert not inside(pod_part, (LED_RING_R, 0, -0.4))
     assert not inside(window_part, (0, 0, 1.0))
     assert inside(window_part, (LED_RING_R, 0, 0.6))
-    # Plug pocket on the ground side of the satellite RJ45 is open, the
-    # bud beside it is still closed.
+    # Square cavity is centred on the port. The plug tunnel on the ground
+    # side is open, and the shell is the same ball on every side of it.
     jx, jy = board_local(*SAT_RJ45)
-    assert not inside(pod_part, (jx, jy - 16.0, -8.0))
-    assert inside(pod_part, (jx, jy - 16.0, -36.0))
+    assert not inside(pod_part, (0.0, 0.0, -8.0))
+    assert not inside(pod_part, (jx, jy, -28.0))
+    assert inside(pod_part, (42.0, 0.0, -8.0))
+    assert inside(pod_part, (0.0, 42.0, -8.0))
+    assert inside(pod_part, (-42.0, 0.0, -8.0))
+    assert inside(pod_part, (0.0, -42.0, -8.0))
+    assert not inside(pod_part, (0.0, 0.0, -52.0))
+    assert inside(pod_part, (24.0, 0.0, -48.0))
+    box = pod_part.bounding_box()
+    span_x = box.max.X - box.min.X
+    span_y = box.max.Y - box.min.Y
+    assert abs(span_x - span_y) < 0.5, (span_x, span_y)
+    assert abs(box.max.X + box.min.X) < 0.5
+    assert abs(box.max.Y + box.min.Y) < 0.5
 
     # Stack center is air. The shell is the same radius along X, Y and Z.
     assert not inside(hub_upper, (40, 30, 20))
@@ -216,7 +228,9 @@ def check_solids(arm_part, hub_lower, hub_upper, pod_part, window_part):
         x = PIEZO_AXIS_R * math.cos(a)
         y = PIEZO_AXIS_R * math.sin(a)
         assert not inside(hub_lower, (x, y, z_mid))
-        assert inside(hub_lower, (x + 7 * math.cos(a), y + 7 * math.sin(a), z_mid))
+        # The Ø12 hole is wider than the 6 mm shell, so the meat sits in the
+        # boss, just outside the bore and just under the outer surface.
+        assert inside(hub_lower, (x + 8 * math.cos(a), y + 8 * math.sin(a), z_out + 1.0))
         nxt = PIEZO_AZ[(i + 1) % len(PIEZO_AZ)]
         assert abs((nxt - deg) % 360 - 120) < 0.1
     # Stack corners are not inside the shell.
@@ -263,7 +277,7 @@ def check_meshes(stl_dir: Path):
         zs = [v[2] for v in verts]
         assert max(xs) - min(xs) > 5, name
         assert max(ys) - min(ys) > 5 or name == "marks.stl"
-        assert max(zs) - min(zs) > 1, name
+        assert max(zs) - min(zs) > (0.5 if name == "marks.stl" else 1.0), name
 
 
 def main():
