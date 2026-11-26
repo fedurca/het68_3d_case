@@ -1,7 +1,7 @@
 """Printable parts for the 384 mm het68 array.
 
-The hub is the supplied spojka mesh, placed by hub_mesh. Six identical
-stalks end in florets. The mast is a real pipe in the diagonal port.
+The hub is a sphere, so every microphone sees the same body. Core and the
+power board sit in that sphere. Six identical stalks end in florets.
 """
 
 from __future__ import annotations
@@ -38,8 +38,19 @@ from params import (
     FLANGE_OD,
     GROOVE_DEPTH,
     GROOVE_WIDTH,
+    CELL_BODY,
+    CELL_CENTER,
+    CELL_H,
+    CORE_BOARD_Z,
+    CORE_HOLES,
+    CORE_RJ45,
+    CORE_X,
+    CORE_Y,
     HUB_CAV_R,
     HUB_R,
+    KEY_HEIGHT,
+    KEY_LENGTH,
+    KEY_WIDTH,
     LED_RING_R,
     LUG_AXIAL,
     LUG_FROM_FACE,
@@ -51,6 +62,10 @@ from params import (
     ORING_CORD,
     POD_SHOULDER,
     PCB_T,
+    POWER_HOLES,
+    POWER_X,
+    POWER_Y,
+    PWR_BOARD_Z,
     PIEZO_AXIS_R,
     PIEZO_AZ,
     PIEZO_BOSS_LEN,
@@ -59,16 +74,18 @@ from params import (
     PIPE_ID,
     PIPE_OD,
     POD_WALL,
+    RJ45_H,
+    SAT_RJ45,
     SCREW_D,
     SEAT_R,
     SOCKET_ID,
     SOCKET_WALL,
-    SPOJK_MOUTH_OD_R,
     SPIGOT_LEN,
     SPIGOT_OD,
     STALK_R,
     Frame,
     board_local,
+    board_world_xy,
     mast_mouth_z,
     mast_seat_z,
     mic_frames,
@@ -145,11 +162,11 @@ def _build_frame() -> Frame:
 
 
 def arm():
-    """One microphone boom. The bayonet lug is on local −Y.
+    """One microphone boom. The rib and the lug are both on local −Y.
 
-    The supplied socket is a round bore with no keyway, so the spigot is a
-    plain cylinder. The bell clears the flared mouth (outer radius 22.5 mm)
-    and its back face starts on the mouth plane, so it does not enter the flare.
+    The bore is the HT pipe Ø28.4 mm, wide enough for an RJ45 plug. The rib
+    clocks the arm in the crown so the lug, and the satellite's RJ45 edge,
+    point at the ground.
     """
     frame = _build_frame()
     bore = PIPE_ID / 2
@@ -164,7 +181,16 @@ def arm():
         _tube(frame, stalk_end, collar0, COLLAR_OD / 2, bore),
         _tube(frame, collar0, tip, COLLAR_OD / 2, bore),
     ]
-    # Bayonet lug on the collar. The floret slot locks the satellite to it.
+    parts.append(
+        _side_box(
+            frame,
+            KEY_LENGTH / 2 + 1.0,
+            SPIGOT_OD / 2 + KEY_HEIGHT / 2,
+            KEY_WIDTH,
+            KEY_HEIGHT,
+            KEY_LENGTH,
+        )
+    )
     lug_z = tip - LUG_FROM_FACE
     parts.append(
         _side_box(
@@ -176,10 +202,9 @@ def arm():
             LUG_AXIAL,
         )
     )
-    bell_in = SPOJK_MOUTH_OD_R + 0.7
-    bell_out = SPOJK_MOUTH_OD_R + 3.6
-    parts.append(_tube(frame, SPIGOT_LEN - 6.0, SPIGOT_LEN + 0.3, bell_out, bell_in))
-    parts.append(_tube(frame, SPIGOT_LEN, SPIGOT_LEN + FLANGE_LEN, bell_out, bore))
+    boss_r = SOCKET_ID / 2 + SOCKET_WALL
+    parts.append(_tube(frame, SPIGOT_LEN - 6.0, SPIGOT_LEN + 0.3, boss_r + 2.8, boss_r + 0.5))
+    parts.append(_tube(frame, SPIGOT_LEN - 0.4, SPIGOT_LEN + FLANGE_LEN, boss_r + 2.8, bore))
     return _fuse(parts)
 
 
@@ -242,7 +267,10 @@ def pod():
     # Shoulder is the blind end of collar_bore at z=shoulder. Extend it a
     # hair past the shoulder so the boolean face is clean, but not into the
     # board cavity (cavity ends near z=-1.6, shoulder is -32).
-    cuts = [void, mic, led, lap, hood_bore, collar_bore]
+    # Pocket on the ground side of the RJ45 so the plug sits inside the floret.
+    jx, jy = board_local(*SAT_RJ45)
+    pocket = Pos(jx, jy - 14.0, -10.0) * Box(22.0, 32.0, 16.0)
+    cuts = [void, mic, led, lap, hood_bore, collar_bore, pocket]
     # L-slot. Entry is twisted off the locked angle and runs in from the mouth.
     # The circumferential run ends on the key side, which is the locked pose.
     slot_r = COLLAR_OD / 2 + LUG_RADIAL / 2
@@ -306,6 +334,47 @@ def pod_window():
     lip = Cylinder(4.6, 3.0) - Cylinder(3.2, 3.6)
     lip = Pos(0, 0, 1.5) * lip
     return flange + spigot + web + lip
+
+
+def _stack_posts():
+    """Posts on the lower crown for the power board and the core.
+
+    Power holes are a symmetric rectangle. Core holes are the v4.6.0 drills,
+    which sit outside the power board, so those posts rise beside it.
+    """
+
+    def one(x: float, y: float, z_top: float):
+        reach = math.sqrt(max(HUB_CAV_R**2 - x * x - y * y, 1.0))
+        z0 = -reach - 3.0
+        post = Pos(x, y, z0) * Cylinder(
+            4.0, z_top - z0, align=(Align.CENTER, Align.CENTER, Align.MIN)
+        )
+        hole = Pos(x, y, z_top - 8.0) * Cylinder(
+            SCREW_D / 2, 12.0, align=(Align.CENTER, Align.CENTER, Align.MIN)
+        )
+        return post - hole
+
+    posts = []
+    for px, py in POWER_HOLES:
+        x, y = board_world_xy(px, py, POWER_X, POWER_Y)
+        posts.append(one(x, y, PWR_BOARD_Z))
+    for px, py in CORE_HOLES:
+        x, y = board_world_xy(px, py, CORE_X, CORE_Y)
+        posts.append(one(x, y, CORE_BOARD_Z))
+    return posts
+
+
+def electronics():
+    """Envelopes of the v4.6.0 boards. Shown in the open view, not printed."""
+    pwr = Pos(0, 0, PWR_BOARD_Z + PCB_T / 2) * Box(POWER_X, POWER_Y, PCB_T)
+    core = Pos(0, 0, CORE_BOARD_Z + PCB_T / 2) * Box(CORE_X, CORE_Y, PCB_T)
+    cx, cy = board_world_xy(*CELL_CENTER, POWER_X, POWER_Y)
+    cell = Pos(cx, cy, PWR_BOARD_Z - CELL_H / 2) * Rot(Y=90) * Cylinder(CELL_BODY[1] / 2, CELL_BODY[0])
+    jacks = []
+    for px, py in CORE_RJ45:
+        x, y = board_world_xy(px, py, CORE_X, CORE_Y)
+        jacks.append(Pos(x, y, CORE_BOARD_Z + PCB_T + RJ45_H / 2) * Box(18.0, 16.0, RJ45_H))
+    return pwr, core, cell, jacks
 
 
 def _hub_lugs(sign: float):
@@ -409,6 +478,8 @@ def _hub_half(upper: bool):
         cuts.append(_hub_oring())
     body = _cut(body, cuts)
     body += _fuse(_hub_lugs(sign))
+    if not upper:
+        body += _fuse(_stack_posts())
     if not upper:
         # Microphone bores above already open into the cavity: that is the
         # cable passage. The piezo holes are the same idea for three transducers.

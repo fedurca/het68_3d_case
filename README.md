@@ -2,21 +2,19 @@
 
 Tisknutelný kryt akustického pole [het68](https://github.com/fedurca/het68). Krychle o hraně 384 mm stojí na vrcholu, mikrofon je ve středu každé stěny a kouká ven po její normále. Protilehlé membrány T5848 jsou od sebe 384 mm.
 
-Střed sestavy je dodaná spojka [`reference/stl/spojka-echo.stl`](reference/stl/spojka-echo.stl). Tištěný soubor [`export/stl/hub.stl`](export/stl/hub.stl) má stejných 257764 trojúhelníků, jen otočených tak, aby šest pravoúhlých hrdel mířilo ve směrech `MIC_DIR` a sedmé hrdlo, po tělesové úhlopříčce, stálo svisle dolů. V síti jsou průchody kabelů a tři otvory po 120° na piezoelektrické měniče pro prostorovou echolokaci.
+Střed je koule. V ní leží Core 160 × 100 mm a silová deska 140 × 80 mm z [het68_pcb v4.6.0](https://github.com/fedurca/het68_pcb/releases/tag/v4.6.0), obě uprostřed. Silová deska má článek 21700 směrem ke stožáru, Core má šest RJ45 směrem nahoru. Plášť má v každém směru stejný poloměr, takže odraz od těla je všude stejný.
 
-Šest stopek je jeden díl a končí růžičkou s mikrofonem. Čep Ø31,7 × 28 mm vleze do hrdla, jehož díra má poloměr 16,6 mm. Příruba dosedne na ústí 60 mm od středu. Kabel od roviny T5848 do středu spojky měří **192 mm** v každém směru, hrdlo je provrtané skrz. Stožár je skutečná trubka HT DN 32 ve svislém hrdle, zasunutá 40 mm.
+Satelit 50 × 80 mm je v každé růžičce. Ven z desky kouká jen otvor T5848 a kruh osmi SK6812. RJ45 je na vnitřní straně a patch kabel Cat6 jde stopkou do svého RJ45 na Core. Šest kabelů má stejnou délku. Díra stopky je Ø28,4 mm, zástrčka RJ45 jí projde.
 
-Stoh Core 160 × 100 mm a silové desky 140 × 80 mm z [het68_pcb v4.5.0](https://github.com/fedurca/het68_pcb/releases/tag/v4.5.0), obálka 160 × 100 × 54 mm, se do této spojky nevejde. Průchody se ve středu kříží.
+Stopka překrývá hrdlo zvonem, růžička překrývá stopku návlekem, víčko LED sedí v osazení. Kolem stožáru jsou tři otvory Ø12 mm po 120° na piezoelektrické měniče. Stožár je skutečná trubka HT DN 32 ve slepém hrdle, zasunutá 40 mm.
 
-Stopka překrývá ústí zvonem, růžička překrývá stopku návlekem, víčko LED sedí v osazení. Dovnitř růžičky vede jen otvor T5848 s límcem na windscreen.
+Firmware pro tuto mechaniku se překládá s `HET68_DOA_EDGE_MM=384`. Směry mikrofonů jsou `MIC_DIR` z [doa.c](https://github.com/fedurca/het68/blob/main/doa.c), návrh pole je v [array_cube_design.md](https://github.com/fedurca/het68/blob/main/array_cube_design.md). Míry desek a koruny jsou v [reference/GEOMETRY.md](reference/GEOMETRY.md).
 
-Firmware pro tuto mechaniku se překládá s `HET68_DOA_EDGE_MM=384`. Směry mikrofonů jsou `MIC_DIR` z [doa.c](https://github.com/fedurca/het68/blob/main/doa.c), návrh pole je v [array_cube_design.md](https://github.com/fedurca/het68/blob/main/array_cube_design.md). Podklady a naměřené míry spojky jsou v [reference/GEOMETRY.md](reference/GEOMETRY.md).
-
-Tělo je zelená ASA. Spojka se tiskne jako jeden díl z dodané sítě. Stopky a růžičky ze tří srostlých kuliček se tisknou zvlášť. Víčko kruhu LED je přírodní průsvitná ASA a slouží jako difuzor, před mikrofon nepatří. Hladký úsek čepu má stěnu 1,8 mm, stonek mezi spojkou a růžičkou má Ø44 mm. Hrdlo spojky je kruhové, bez drážky, takže se stopka lepí zubem bajonetu směrem k zemi.
+Tělo je zelená ASA: kulová koruna, stopky Ø44 mm, růžičky ze tří srostlých kuliček. Víčko kruhu LED je přírodní průsvitná ASA a slouží jako difuzor, před mikrofon nepatří. Tištěný čep do koruny má Ø31,7 × 28 mm. Žebro čepu a zub bajonetu jsou na straně, která po nasazení míří k zemi, takže hrana RJ45 satelitu je nejníž.
 
 ## Sestava
 
-Šest stejných stopek míří ve směru `MIC_DIR`. Mikrofon 1 je sever, elevace +35°. Šipka na jeho růžičce leží na horní straně a v sestavě ukazuje k severu. Šedá trubka je stožár, zasunutý 40 mm do svislého hrdla. Není to tištěný díl.
+Šest stejných stopek míří ve směru `MIC_DIR`. Mikrofon 1 je sever, elevace +35°. Šipka na jeho růžičce leží na horní straně a v sestavě ukazuje k severu. Šedá trubka je stožár, zasunutý 40 mm do slepého hrdla. Není to tištěný díl.
 
 ![Izometrie sestavy](export/img/assembly-iso.png)
 
@@ -26,23 +24,33 @@ Tělo je zelená ASA. Spojka se tiskne jako jeden díl z dodané sítě. Stopky 
 
 ![Pohled zespodu, hrdlo stožáru a otvory na měniče](export/img/assembly-bottom.png)
 
-Délka kabelu a hloubka zasunutí stožáru jsou v [export/CUT_LENGTHS.txt](export/CUT_LENGTHS.txt).
+![Koruna bez vršku: Core, silová deska, článek a šest RJ45](export/img/assembly-open.png)
+
+Délka kabelů a hloubka zasunutí stožáru jsou v [export/CUT_LENGTHS.txt](export/CUT_LENGTHS.txt).
 
 ## Díly
 
-Tištěné díly jsou v [export/stl](export/stl). Stopka, růžička, víčko a šipka mají i STEP v [export/step](export/step). Spojka je síť, STEP z ní není.
+Tištěné díly jsou v [export/stl](export/stl) a [export/step](export/step). Koruna je půlená v rovníku. Dutina je koule Ø204 mm. Zvenku je plášť koule Ø220 mm.
 
-### Spojka
+### Koruna, spodek
 
-Sedm hrdel z dodaného modelu. Šest končí 60 mm od středu a bere stopky, sedmé míří dolů a bere stožár. Díra šesti hrdel má poloměr 16,6 mm, ústí se rozšiřuje na poloměr 22,5 mm. Tři otvory na měniče leží v síti kolem stožáru. Soubor má stejné trojúhelníky jako podklad.
+Tři dolní hrdla, svislý stonek se slepým hrdlem a tři otvory Ø12 mm na měniče. V dutině jsou sloupky: čtyři na díry silové desky a čtyři na díry Core. Silová deska sedí článkem dolů, Core leží nad ní konektory nahoru. V rovníku je drážka na O-kroužek Ø2,5 mm.
 
-![Spojka](export/img/hub.png)
+![Spodní polokoule](export/img/hub_lower.png)
 
-[hub.stl](export/stl/hub.stl)
+[hub_lower.stl](export/stl/hub_lower.stl) · [hub_lower.step](export/step/hub_lower.step)
+
+### Koruna, vršek
+
+Tři horní hrdla a jazýček do spodní dutiny. Vnější plocha navazuje bez příruby.
+
+![Horní polokoule](export/img/hub_upper.png)
+
+[hub_upper.stl](export/stl/hub_upper.stl) · [hub_upper.step](export/step/hub_upper.step)
 
 ### Stopka
 
-Jeden díl pro všech šest směrů. Do spojky jde hladký čep Ø31,7 × 28 mm, přes ústí je zvon s vnitřním poloměrem 23,2 mm. Mezi spojkou a růžičkou je stonek Ø44 mm s dírou Ø28,4 mm, na konci límec Ø40 mm s jedním bajonetovým zubem. Zub po nalepení míří k zemi, takže konektorová hrana satelitu je nejníž.
+Jeden díl pro všech šest směrů. Do koruny jde čep Ø31,7 × 28 mm s žebrem, přes hrdlo je zvon. Mezi korunou a růžičkou je stonek Ø44 mm s dírou Ø28,4 mm, na konci límec Ø40 mm s jedním bajonetovým zubem. Žebro a zub jsou na stejné straně. Ta strana po nasazení míří k zemi.
 
 ![Rameno](export/img/arm.png)
 
@@ -50,7 +58,7 @@ Jeden díl pro všech šest směrů. Do spojky jde hladký čep Ø31,7 × 28 mm,
 
 ### Růžička
 
-Drží satelit 50 × 80 mm, světlost 56 × 86 mm. Tělo jsou tři srostlé kuličky seříznuté v rovině mikrofonu, ať růžička čte jako brokolice. Ven vede jen otvor T5848 a prstenec osmi SK6812, víčko LED se lepí do osazení. Návlek na tlustší stopce kryje bajonet. Nasazení je pootočené o 30° a dotočené tak, aby hrana s RJ45 byla dole.
+Drží satelit 50 × 80 mm z v4.6.0, světlost 56 × 86 mm. T5848 je v (25, 58), na stejném místě jako střed kruhu LED. RJ45 je na vnitřní straně v (14, 16) a zástrčka má kapsu směrem k zemi. Tělo jsou tři srostlé kuličky seříznuté v rovině mikrofonu. Návlek na stopce kryje bajonet. Nasazení je pootočené o 30° a dotočené tak, aby hrana s RJ45 byla dole.
 
 ![Růžička](export/img/pod.png)
 

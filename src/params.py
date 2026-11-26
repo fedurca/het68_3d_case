@@ -6,6 +6,7 @@ between opposite faces is the cube edge, 384 mm.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from build123d import Plane, Vector
@@ -40,25 +41,23 @@ GROOVE_WIDTH = 5.2
 GROOVE_DEPTH = 2.4
 GROOVE_LENGTH = 16.0
 
-# Supplied spojka, reference/stl/spojka-echo.stl. Measured on that mesh and
-# used unchanged: each of the six cartesian ports ends at 60 mm, the bore is
-# a round hole of radius 16.60 mm, and the mouth face flares out to 22.50 mm.
-# The seventh port, along the body diagonal, reaches 78.23 mm and points down
-# once the mesh is placed on MIC_DIR.
+# Spherical crown. One outer radius in every direction, so each microphone
+# looks back at the same body. The cavity holds the centered v4.6.0 stack.
+HUB_CAV_R = 102.0
+HUB_R = 110.0
+SPIGOT_LEN = 28.0
+# Spigot tip stays outside the stack. The flange is one spigot further out.
+SEAT_R = 96.0
+MOUTH_R = SEAT_R + SPIGOT_LEN
+MAST_SPIGOT = 40.0
+MAST_SEAT_Z = -(HUB_CAV_R + 2.0)
+# Measurements of reference/stl/spojka-echo.stl. The printable crown is the
+# sphere above; these numbers stay so the reference mesh can be placed.
 SPOJK_MOUTH = 60.0
 SPOJK_BORE_R = 16.60
 SPOJK_MOUTH_OD_R = 22.50
 SPOJK_MAST_MOUTH = 78.23
-SPIGOT_LEN = 28.0
-# The flange lands on the mouth. The spigot fills the outer 28 mm of the bore.
-SEAT_R = SPOJK_MOUTH - SPIGOT_LEN
-MOUTH_R = SEAT_R + SPIGOT_LEN
-MAST_SPIGOT = 40.0
-
-# Radii of the previous spherical crown. The printable hub is the mesh above.
-HUB_CAV_R = 102.0
-HUB_R = 110.0
-MAST_SEAT_Z = -(HUB_CAV_R + 2.0)
+# Three Ø12 transducer holes around the stem, kept from the spojka layout.
 PIEZO_DIA = 12.0
 PIEZO_AXIS_R = 48.0
 PIEZO_AZ = (0.0, 120.0, 240.0)
@@ -83,10 +82,12 @@ LUG_FROM_FACE = 6.0
 # Bayonet enters 30° off the locked clocking, then twists back.
 BAYONET_TWIST_DEG = 30.0
 
-# Satellite board, KiCad het68-sat v4.5.0, millimetres, origin at a corner.
+# Satellite, KiCad het68-sat v4.6.0. Origin is a corner of the 50 × 80 board.
+# T5848 and the LED ring share (25, 58). RJ45 is on the inner side, toward y=0.
 BOARD_W = 50.0
 BOARD_H = 80.0
-PORT_ON_BOARD = (25.0, 58.708)  # T5848 acoustic port
+PORT_ON_BOARD = (25.0, 58.0)
+SAT_RJ45 = (14.0, 16.0)
 LED_RING_R = 12.0
 LED_BODY = 5.0
 MOUNT_HOLES = ((42.0, 12.0), (8.0, 40.0), (42.0, 66.0), (8.0, 74.0))
@@ -94,12 +95,34 @@ BOARD_CLEAR = 3.0  # světlost 56 × 86
 POD_WALL = 3.0
 PCB_T = 1.6
 LIP = 1.6
+# Amphenol RJHSE538X body, and the IEC 60603-7 plug that has to pass the bore.
+RJ45_H = 13.6
+RJ45_PLUG_W = 11.7
+RJ45_PLUG_H = 8.0
 
-# Electronics stack envelope from the v4.5.0 outlines plus the 21700 holder.
-# The stack is centered on the origin. The round cavity is wider than the
-# board so the six angled bores open into it without clipping the wall.
-CORE_X, CORE_Y, CORE_Z = 160.0, 100.0, 54.0
+# Core 160 × 100 and power 140 × 80, both from het68_pcb v4.6.0, centered.
+# Power components face down (21700 toward the mast). Core components face
+# up (the six RJ45 toward the upper hemisphere). Bare faces look at each other.
+CORE_X, CORE_Y = 160.0, 100.0
 POWER_X, POWER_Y = 140.0, 80.0
+PWR_BOARD_Z = -2.0
+CORE_BOARD_Z = 8.0
+CELL_H = 23.0  # Keystone 1122 with a 21700 cell, below the power board
+# RJ45 on the core, board coordinates, along the y=10 edge. Order is MIC 1..6.
+CORE_RJ45 = (
+    (14.0, 10.0),
+    (38.0, 10.0),
+    (62.0, 10.0),
+    (86.0, 10.0),
+    (110.0, 10.0),
+    (134.0, 10.0),
+)
+# M3 holes, board coordinates. Power holes are a symmetric rectangle.
+POWER_HOLES = ((4.0, 4.0), (4.0, 76.0), (136.0, 4.0), (136.0, 76.0))
+CORE_HOLES = ((4.95, 70.95), (6.0, 94.0), (154.0, 6.0), (154.0, 94.0))
+# Keystone 1122 body on the power board, used to keep the posts off the cell.
+CELL_CENTER = (78.0, 62.0)
+CELL_BODY = (91.2, 23.1)
 RAIL_CLEAR = 0.8
 SCREW_D = 3.4
 ORING_CORD = 2.5
@@ -161,16 +184,60 @@ def shell_radius() -> float:
     return HUB_R
 
 
+def board_world_xy(px: float, py: float, width: float, height: float) -> tuple[float, float]:
+    """Board point when that board is centered on the origin."""
+    return (px - width / 2.0, py - height / 2.0)
+
+
+def stack_points():
+    """Corners of the core, the power board, the cell and the six jacks."""
+    pts = []
+    z0, z1 = CORE_BOARD_Z, CORE_BOARD_Z + PCB_T + RJ45_H
+    for x in (-CORE_X / 2, CORE_X / 2):
+        for y in (-CORE_Y / 2, CORE_Y / 2):
+            pts.append((x, y, z0))
+            pts.append((x, y, z1))
+    z0, z1 = PWR_BOARD_Z - CELL_H, PWR_BOARD_Z + PCB_T
+    for x in (-POWER_X / 2, POWER_X / 2):
+        for y in (-POWER_Y / 2, POWER_Y / 2):
+            pts.append((x, y, z0))
+            pts.append((x, y, z1))
+    return pts
+
+
 def cable_length() -> float:
-    """Straight run from a T5848 plane to the centre of the spojka."""
-    return ACOUSTIC_R
+    """Cat6 between a satellite plug and its core plug. Same cut on all six.
+
+    The path is the plug in the floret, the shared stalk, then the run inside
+    the crown to that microphone's jack. All six are cut to the longest one.
+    """
+    frames = mic_frames()
+    lx, ly = board_local(*SAT_RJ45)
+    longest = 0.0
+    for i, frame in enumerate(frames):
+        start = frame.point(ACOUSTIC_R - 3.2, lx, ly)
+        plug = frame.point(ACOUSTIC_R - 3.2, lx, ly - 22.0)
+        bore = frame.point(ACOUSTIC_R - 28.0)
+        mouth = frame.point(HUB_CAV_R + 2.0)
+        jx, jy = board_world_xy(*CORE_RJ45[i], CORE_X, CORE_Y)
+        jack = Vector(jx, jy, CORE_BOARD_Z + PCB_T)
+        # Step outside the stack before crossing the cavity, so the length
+        # is a path the cable can actually take.
+        side = Vector(mouth.X, mouth.Y, jack.Z)
+        run = 0.0
+        prev = start
+        for point in (plug, bore, mouth, side, jack):
+            run += (point - prev).length
+            prev = point
+        longest = max(longest, run)
+    # Two plug bodies and a coil of spare inside the crown.
+    return float(math.ceil((longest + 40.0) / 10.0) * 10.0)
 
 
 def mast_seat_z() -> float:
-    """Inner end of a 40 mm insertion in the diagonal port."""
-    return -SPOJK_MAST_MOUTH + MAST_SPIGOT
+    """Pipe stop inside the lower crown. The bore does not enter the cavity."""
+    return MAST_SEAT_Z
 
 
 def mast_mouth_z() -> float:
-    """Mouth of the diagonal port, on world −Z after the mesh is placed."""
-    return -SPOJK_MAST_MOUTH
+    return MAST_SEAT_Z - MAST_SPIGOT
